@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    :root { --blue:#1f4e78; --bg:#f4f7fb; --red:#c62828; --green:#16794c; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif; color:#1f2937; background:var(--bg); }
+    header { padding:18px 24px; color:#fff; background:var(--blue); }
+    h1 { margin:0; font-size:22px; }
+    main { max-width:1200px; margin:0 auto; padding:20px; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .card, section { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px #183b5514; }
+    .card small { color:#64748b; display:block; }
+    .card strong { display:block; font-size:28px; margin-top:4px; }
+    .danger { color:var(--red); }
+    .grid { display:grid; grid-template-columns:minmax(280px,360px) 1fr; gap:16px; align-items:start; }
+    h2 { font-size:17px; margin:0 0 14px; }
+    label { display:block; font-size:13px; color:#475569; margin:10px 0 4px; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:7px; font:inherit; }
+    textarea { min-height:60px; resize:vertical; }
+    button { cursor:pointer; border:0; color:#fff; background:var(--blue); font-weight:600; margin-top:12px; }
+    button.secondary { color:#334155; background:#e2e8f0; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .toolbar { display:flex; gap:8px; margin-bottom:12px; }
+    .toolbar input { flex:1; }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+    th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; }
+    th { color:#475569; background:#f8fafc; }
+    tr.low { background:#fff3f3; }
+    .pill { display:inline-block; padding:3px 7px; border-radius:99px; font-size:12px; background:#dcfce7; color:var(--green); }
+    .pill.low { background:#fee2e2; color:var(--red); }
+    .edit { width:auto; margin:0; padding:5px 8px; font-size:12px; }
+    #message { min-height:22px; margin:10px 0; font-size:13px; }
+    #message.error { color:var(--red); }
+    #message.ok { color:var(--green); }
+    .muted { color:#64748b; font-size:12px; }
+    @media (max-width:800px) { .cards,.grid { grid-template-columns:1fr; } main { padding:12px; } }
+  </style>
+</head>
+<body>
+  <header><h1>電子部品 在庫管理</h1></header>
+  <main>
+    <div id="message"></div>
+    <div class="cards">
+      <div class="card"><small>部品種類</small><strong id="partCount">-</strong></div>
+      <div class="card"><small>総在庫数</small><strong id="totalStock">-</strong></div>
+      <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <section>
+          <h2 id="partFormTitle">部品を登録</h2>
+          <form id="partForm">
+            <input type="hidden" id="part_id">
+            <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
+            <div class="row">
+              <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
+              <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
+            </div>
+            <div class="row">
+              <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
+              <div><label for="unit">単位</label><input id="unit" value="個"></div>
+            </div>
+            <div class="row">
+              <div><label for="initial_stock">初期在庫</label><input id="initial_stock" type="number" min="0" value="0"></div>
+              <div><label for="min_stock">最低在庫</label><input id="min_stock" type="number" min="0" value="0"></div>
+            </div>
+            <label for="note">メモ</label><textarea id="note"></textarea>
+            <button type="submit">保存</button>
+            <button type="button" class="secondary" id="cancelEdit">入力をリセット</button>
+          </form>
+        </section>
+
+        <section style="margin-top:16px">
+          <h2>入庫・出庫</h2>
+          <form id="transactionForm">
+            <label for="transaction_part_id">部品 *</label><select id="transaction_part_id" required><option value="">読み込み中...</option></select>
+            <div class="row">
+              <div><label for="type">種類</label><select id="type"><option value="IN">入庫</option><option value="OUT">出庫</option></select></div>
+              <div><label for="quantity">数量 *</label><input id="quantity" type="number" min="1" step="1" required></div>
+            </div>
+            <label for="transaction_note">メモ</label><input id="transaction_note" placeholder="購入 / 使用先など">
+            <button type="submit">在庫を更新</button>
+          </form>
+          <p class="muted">在庫数は履歴に記録されます。出庫で在庫がマイナスになる操作はできません。</p>
+        </section>
+      </div>
+
+      <section>
+        <h2>部品一覧</h2>
+        <div class="toolbar"><input id="search" placeholder="部品名・ID・場所で検索"><button type="button" class="secondary" id="reload">再読込</button></div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>部品名</th><th>カテゴリ</th><th>場所</th><th>在庫</th><th>最低</th><th>状態</th><th></th></tr></thead><tbody id="partsBody"></tbody></table></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let appData = { parts: [], dashboard: {} };
+    const $ = (id) => document.getElementById(id);
+
+    function server(method, payload) {
+      return new Promise((resolve, reject) => {
+        const runner = google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler((error) => { showMessage(error.message || error, true); reject(error); });
+        if (typeof payload === 'undefined') runner[method]();
+        else runner[method](payload);
+      });
+    }
+
+    async function loadData() {
+      try { appData = await server('getAppData'); render(); }
+      catch (error) { /* message is already shown */ }
+    }
+
+    function render() {
+      const d = appData.dashboard || {};
+      $('partCount').textContent = d.partCount ?? 0;
+      $('totalStock').textContent = d.totalStock ?? 0;
+      $('lowStockCount').textContent = d.lowStockCount ?? 0;
+      const query = $('search').value.trim().toLowerCase();
+      const parts = appData.parts.filter((p) => [p.part_id,p.name,p.category,p.location].join(' ').toLowerCase().includes(query));
+      $('partsBody').innerHTML = parts.length ? parts.map((p) => {
+        const low = p.stock <= p.min_stock;
+        return `<tr class="${low ? 'low' : ''}">
+          <td>${esc(p.part_id)}</td><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${esc(p.location)}</td>
+          <td>${p.stock} ${esc(p.unit)}</td><td>${p.min_stock}</td>
+          <td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
+          <td><button class="edit" data-id="${esc(p.part_id)}">編集</button></td></tr>`;
+      }).join('') : '<tr><td colspan="8">該当する部品がありません。</td></tr>';
+      const select = $('transaction_part_id');
+      const selected = select.value;
+      select.innerHTML = '<option value="">選択してください</option>' + appData.parts.map((p) => `<option value="${esc(p.part_id)}">${esc(p.name)} (${esc(p.part_id)})</option>`).join('');
+      if (appData.parts.some((p) => p.part_id === selected)) select.value = selected;
+    }
+
+    function resetPartForm() {
+      $('partForm').reset(); $('part_id').value = ''; $('unit').value = '個'; $('initial_stock').disabled = false;
+      $('partFormTitle').textContent = '部品を登録';
+    }
+
+    function editPart(id) {
+      const p = appData.parts.find((item) => item.part_id === id); if (!p) return;
+      $('part_id').value = p.part_id; $('name').value = p.name; $('category').value = p.category;
+      $('manufacturer').value = p.manufacturer; $('location').value = p.location; $('unit').value = p.unit;
+      $('min_stock').value = p.min_stock; $('note').value = p.note; $('initial_stock').value = p.stock; $('initial_stock').disabled = true;
+      $('partFormTitle').textContent = '部品を編集'; window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    $('partForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        showMessage('保存中...');
+        appData = await server('savePart', { part_id:$('part_id').value, name:$('name').value, category:$('category').value, manufacturer:$('manufacturer').value, location:$('location').value, unit:$('unit').value, initial_stock:$('initial_stock').value, min_stock:$('min_stock').value, note:$('note').value });
+        resetPartForm(); render(); showMessage('保存しました。');
+      } catch (error) {}
+    });
+
+    $('transactionForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        showMessage('更新中...');
+        appData = await server('recordTransaction', { part_id:$('transaction_part_id').value, type:$('type').value, quantity:$('quantity').value, note:$('transaction_note').value });
+        $('quantity').value = ''; $('transaction_note').value = ''; render(); showMessage('在庫を更新しました。');
+      } catch (error) {}
+    });
+
+    $('partsBody').addEventListener('click', (event) => { if (event.target.dataset.id) editPart(event.target.dataset.id); });
+    $('cancelEdit').addEventListener('click', resetPartForm);
+    $('reload').addEventListener('click', loadData);
+    $('search').addEventListener('input', render);
+    function showMessage(message, error) { $('message').textContent = message || ''; $('message').className = error ? 'error' : 'ok'; }
+    function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+    loadData();
+  </script>
+</body>
+</html>

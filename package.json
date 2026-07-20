@@ -1,0 +1,13 @@
+{
+  "name": "elecstock",
+  "private": true,
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp deploy"
+  },
+  "devDependencies": {
+    "@google/clasp": "latest"
+  }
+}
