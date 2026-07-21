@@ -131,7 +131,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+    import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
     import { addDoc, collection, doc, getDocs, getFirestore, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
     import { firebaseConfig, isFirebaseConfigured } from './firebase-config.js';
 
@@ -258,8 +258,16 @@
     }
 
     async function startLogin() {
-      try { await signInWithRedirect(state.auth, new GoogleAuthProvider()); }
-      catch (error) { showStatus('ログインできませんでした', error.message || 'Googleログインに失敗しました。', true); }
+      try {
+        await signInWithPopup(state.auth, new GoogleAuthProvider());
+      } catch (error) {
+        const message = error.code === 'auth/popup-blocked'
+          ? 'ポップアップがブロックされました。ブラウザのポップアップを許可してください。'
+          : error.code === 'auth/popup-closed-by-user'
+            ? 'ログイン画面が閉じられました。もう一度お試しください。'
+            : error.message || 'Googleログインに失敗しました。';
+        showStatus('ログインできませんでした', message, true);
+      }
     }
 
     function showApp(user) {
@@ -279,7 +287,6 @@
       state.app = initializeApp(firebaseConfig);
       state.auth = getAuth(state.app);
       state.db = getFirestore(state.app);
-      try { await getRedirectResult(state.auth); } catch (error) { showStatus('ログインに失敗しました', error.message || 'Googleログインに失敗しました。', true); return; }
       onAuthStateChanged(state.auth, (user) => user ? showApp(user) : showStatus('ログインしてください', 'Googleアカウントでログインすると在庫管理を使えます。', true));
     }
 
