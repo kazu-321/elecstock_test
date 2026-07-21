@@ -92,7 +92,7 @@
       <div id="message"></div>
       <div class="cards">
         <div class="card"><small>部品種類</small><strong id="partCount">-</strong></div>
-        <div class="card"><small>現在の推定在庫</small><strong id="totalStock">-</strong></div>
+        <div class="card"><small>未観測の部品</small><strong id="unobservedCount">-</strong></div>
         <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
       </div>
 
@@ -237,7 +237,7 @@
       const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer].join(' ').toLowerCase().includes(queryText));
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
-      $('totalStock').textContent = state.parts.reduce((sum, part) => sum + part.stock, 0);
+      $('unobservedCount').textContent = state.parts.filter((part) => part.lastObservedStock == null).length;
       $('lowStockCount').textContent = lowCount;
       $('partsBody').innerHTML = visible.length ? visible.map((part) => {
         const low = part.stock <= part.min_stock;
