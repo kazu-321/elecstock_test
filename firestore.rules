@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // MVP: Googleログイン済みユーザーは全員、在庫を利用できます。
+    match /parts/{partId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 履歴はログイン済みユーザーが読めます。作成はできますが、後から変更・削除はできません。
+    match /transactions/{transactionId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}

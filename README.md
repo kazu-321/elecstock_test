@@ -1,98 +1,106 @@
-# 電子部品 在庫管理（Spreadsheet + GAS）
+# 電子部品 在庫管理（GitHub Pages + Firebase）
 
-Spreadsheetをデータベースとして使う、電子部品の在庫管理Webアプリです。
+スマホで使いやすい、静的ホスティング型の電子部品在庫管理アプリです。
+
+## 現在の構成
+
+```text
+GitHub Pages（docs/）
+  ↓ Googleログイン
+Firebase Authentication
+  ↓ ログイン済みユーザーのみ
+Cloud Firestore
+```
+
+GASとSpreadsheetは現在のPages版では使いません。古いGAS版のファイル（`Code.gs`、`Index.html`）は移行履歴として残しています。
 
 ## できること
 
+- Googleアカウントでログイン
+- ログイン済みユーザー全員が利用可能（現時点ではドメイン制限なし）
 - 部品の登録・編集
-- 部品IDの自動発行（UUID、ユーザー入力不要）
+- 部品IDの自動発行（FirestoreのドキュメントID）
 - 入庫・出庫の記録
 - 在庫数の自動更新
 - 低在庫の表示
-- `transactions` シートへの入出庫履歴保存
+- 入出庫履歴の保存
 
-## 使い始める手順
+## Firebaseの初期設定
 
-### 1. Spreadsheetを作る
+### 1. Firebaseプロジェクトを作る
 
-空のGoogle Spreadsheetを1つ作り、URLの `/d/` と `/edit` の間にある文字列をコピーします。
-これがSpreadsheet IDです。
+Firebaseコンソールでプロジェクトを作成します。無料のSparkプランのまま開始できます。
 
-### 2. GASプロジェクトを作る
+### 2. Googleログインを有効にする
 
-Node.jsが入っている環境で、このフォルダから実行します。
+Firebaseコンソールの「Authentication」→「Sign-in method」→「Google」を有効にします。
 
-```bash
-npm install
-npx clasp login
-npx clasp create --type standalone --title "elecstock"
-npx clasp push
+### 3. Webアプリを登録する
+
+プロジェクトの設定からWebアプリを追加し、表示された設定値を`docs/firebase-config.js`へ貼り付けます。
+
+この設定値はWebアプリに公開される前提です。秘密鍵やサービスアカウントJSONは絶対に入れないでください。
+
+### 4. Firestoreを作る
+
+「Firestore Database」→「データベースを作成」で作成します。
+
+FirebaseコンソールのFirestore「ルール」に、リポジトリの`firestore.rules`の内容を貼り付けて公開します。
+
+現在のルールは、Googleログイン済みユーザー全員に読み書きを許可しています。後から`@gm.ibaraki-ct.ac.jp`限定へ変更できます。
+
+### 5. GitHub Pagesのドメインを許可する
+
+Authenticationの「設定」→「承認済みドメイン」に、次を追加します。
+
+```text
+kazu-321.github.io
 ```
 
-### 3. Spreadsheet IDを設定する
+## GitHub Pagesを公開する
 
-```bash
-npx clasp open
+GitHubリポジトリのSettings → Pagesで次を指定します。
+
+- Source: Deploy from a branch
+- Branch: `codex/inventory-mvp`
+- Folder: `/docs`
+
+公開URL：
+
+```text
+https://kazu-321.github.io/elecstock_test/
 ```
 
-GASエディタで `_setSpreadsheetId` を選び、次のように実行します。
+## データ構成
 
-```javascript
-_setSpreadsheetId('ここにSpreadsheet ID')
+### `parts`コレクション
+
+```text
+name | category | manufacturer | location | stock | min_stock | unit | note
 ```
 
-初回実行時の権限確認を許可してください。`parts`、`transactions`、`settings` シートが自動作成されます。
+ドキュメントIDが内部部品IDです。画面には表示せず、ユーザーは部品名で操作します。
 
-### 4. Webアプリとして公開する
+### `transactions`コレクション
 
-GASエディタの「デプロイ」→「新しいデプロイ」→「ウェブアプリ」を選びます。
+```text
+partId | timestamp | type | quantity | note | operator | stockAfter
+```
 
-- 次のユーザーとして実行：自分
-- アクセスできるユーザー：必要な範囲を選択
+## 開発
 
-公開されたURLを開けば使えます。
-
-## Git運用
-
-ソースコードを変更したら、次の順番です。
+Pages版の変更は`docs/`を編集します。GASの`npx clasp push`は不要です。
 
 ```bash
-npx clasp push
-git add Code.gs Index.html appsscript.json README.md package.json .claspignore .gitignore
+git add docs firestore.rules README.md
 git commit -m "変更内容"
+git push
 ```
 
-Spreadsheetの中身はGitでは管理せず、`transactions`を履歴として残します。重要なデータはSpreadsheet側でもバックアップしてください。
+## 無料枠の目安
 
-## シート構成
+- Firebase Authentication：Googleなどのソーシャルログインは無料
+- Firestore：読み取り5万件/日、書き込み2万件/日、保存1GBなど
+- GitHub Pages：公開サイト1GB、帯域100GB/月のソフト上限など
 
-### parts
-
-```text
-part_id | name | category | manufacturer | location | stock | min_stock | unit | note | updated_at
-```
-
-### transactions
-
-```text
-transaction_id | timestamp | type | part_id | quantity | note | operator | stock_after
-```
-
-`part_id`は内部管理用のUUIDです。ユーザーは入力・管理せず、Web画面から部品名で操作してください。
-
-在庫数を直接書き換えず、Web画面から入庫・出庫を記録してください。
-
-## GitHub Pages
-
-GitHub Pagesは入口ページとして使い、Spreadsheetを操作する本体はGAS Webアプリで動かします。
-GASの`google.script.run`はApps Script HTML画面専用のため、GitHub Pagesから直接置き換える構成にはしていません。
-
-リポジトリのSettings → Pagesで、公開元を`codex/inventory-mvp`ブランチの`/docs`に設定してください。
-
-## 次に追加すると便利な機能
-
-1. 部品カテゴリ・場所のプルダウン
-2. CSVインポート・エクスポート
-3. バーコード／QRコード読み取り
-4. 変更履歴の検索
-5. Googleアカウントによる権限管理
+小規模な部品在庫管理であれば十分な範囲です。

@@ -3,23 +3,295 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f4e78">
   <title>電子部品 在庫管理</title>
   <style>
-    :root { color-scheme: light; font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif; }
-    body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f4f7fb; color:#1f2937; }
-    main { width:min(92vw,520px); padding:32px 24px; text-align:center; background:#fff; border-radius:18px; box-shadow:0 8px 30px #183b5518; }
-    h1 { margin:0 0 12px; color:#1f4e78; font-size:25px; }
-    p { line-height:1.8; color:#64748b; }
-    a { display:block; margin:24px 0 14px; padding:14px 18px; border-radius:10px; color:#fff; background:#1f4e78; text-decoration:none; font-weight:700; }
-    small { color:#94a3b8; }
+    :root { --blue:#1f4e78; --bg:#f4f7fb; --red:#c62828; --green:#16794c; --line:#dbe4ee; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif; color:#1f2937; background:var(--bg); }
+    header { padding:16px 20px; color:#fff; background:var(--blue); }
+    header .header-inner { max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h1 { margin:0; font-size:21px; }
+    main { max-width:1200px; margin:0 auto; padding:18px; }
+    .screen { max-width:520px; margin:8vh auto 0; padding:28px 22px; text-align:center; background:#fff; border-radius:16px; box-shadow:0 2px 12px #183b5514; }
+    .screen h2 { color:var(--blue); }
+    .screen p { line-height:1.8; color:#64748b; }
+    .hidden { display:none !important; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .card, section { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px #183b5514; }
+    .card small { color:#64748b; display:block; }
+    .card strong { display:block; font-size:28px; margin-top:4px; }
+    .danger { color:var(--red); }
+    .grid { display:grid; grid-template-columns:minmax(280px,360px) 1fr; gap:16px; align-items:start; }
+    h2 { font-size:17px; margin:0 0 14px; }
+    label { display:block; font-size:13px; color:#475569; margin:10px 0 4px; }
+    input, select, textarea, button { width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:7px; font:inherit; }
+    textarea { min-height:60px; resize:vertical; }
+    button { cursor:pointer; border:0; color:#fff; background:var(--blue); font-weight:600; margin-top:12px; }
+    button.secondary { color:#334155; background:#e2e8f0; }
+    button.link { width:auto; margin:0; padding:7px 10px; font-size:12px; background:#e2e8f0; color:#334155; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .toolbar { display:flex; gap:8px; margin-bottom:12px; }
+    .toolbar input { flex:1; }
+    .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+    th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; }
+    th { color:#475569; background:#f8fafc; }
+    tr.low { background:#fff3f3; }
+    .pill { display:inline-block; padding:3px 7px; border-radius:99px; font-size:12px; background:#dcfce7; color:var(--green); }
+    .pill.low { background:#fee2e2; color:var(--red); }
+    .edit { width:auto; margin:0; padding:5px 8px; font-size:12px; }
+    #message { min-height:22px; margin:8px 0; font-size:13px; }
+    #message.error { color:var(--red); }
+    #message.ok { color:var(--green); }
+    .muted { color:#64748b; font-size:12px; }
+    .user { display:flex; align-items:center; gap:8px; font-size:12px; }
+    .user-email { max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    code { padding:2px 4px; border-radius:4px; background:#f1f5f9; }
+    @media (max-width:800px) {
+      .cards,.grid { grid-template-columns:1fr; }
+      main { padding:12px; }
+      header { padding:14px 12px; }
+      header .header-inner { align-items:flex-start; }
+      .user-email { max-width:145px; }
+    }
   </style>
 </head>
 <body>
+  <header>
+    <div class="header-inner">
+      <h1>電子部品 在庫管理</h1>
+      <div id="userBar" class="user hidden"><span id="userEmail" class="user-email"></span><button id="logoutButton" class="link" type="button">ログアウト</button></div>
+    </div>
+  </header>
+
   <main>
-    <h1>電子部品 在庫管理</h1>
-    <p>Googleアカウントでログインして、在庫管理を開始します。</p>
-    <a href="https://script.google.com/macros/s/AKfycbxefmdCAqvIVGJj-LCWD4Di12be-n0gg8svXw9TYFkLbk2Dtfa5vNuizxk33Pu9MvMMnw/exec">在庫管理を開く</a>
-    <small>スマホではChromeで開いてください。</small>
+    <section id="statusScreen" class="screen">
+      <h2 id="statusTitle">起動中...</h2>
+      <p id="statusText">Firebaseを確認しています。</p>
+      <button id="loginButton" class="hidden" type="button">Googleでログイン</button>
+    </section>
+
+    <div id="appScreen" class="hidden">
+      <div id="message"></div>
+      <div class="cards">
+        <div class="card"><small>部品種類</small><strong id="partCount">-</strong></div>
+        <div class="card"><small>総在庫数</small><strong id="totalStock">-</strong></div>
+        <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <section>
+            <h2 id="partFormTitle">部品を登録</h2>
+            <form id="partForm">
+              <p class="muted">部品IDは自動発行されます。入力不要です。</p>
+              <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
+              <div class="row">
+                <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
+                <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
+              </div>
+              <div class="row">
+                <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
+                <div><label for="unit">単位</label><input id="unit" value="個"></div>
+              </div>
+              <div class="row">
+                <div><label for="initialStock">初期在庫</label><input id="initialStock" type="number" min="0" value="0"></div>
+                <div><label for="minStock">最低在庫</label><input id="minStock" type="number" min="0" value="0"></div>
+              </div>
+              <label for="note">メモ</label><textarea id="note"></textarea>
+              <button type="submit">保存</button>
+              <button type="button" class="secondary" id="cancelEdit">入力をリセット</button>
+            </form>
+          </section>
+
+          <section style="margin-top:16px">
+            <h2>入庫・出庫</h2>
+            <form id="transactionForm">
+              <label for="transactionPartId">部品 *</label><select id="transactionPartId" required><option value="">読み込み中...</option></select>
+              <div class="row">
+                <div><label for="transactionType">種類</label><select id="transactionType"><option value="IN">入庫</option><option value="OUT">出庫</option></select></div>
+                <div><label for="quantity">数量 *</label><input id="quantity" type="number" min="1" step="1" required></div>
+              </div>
+              <label for="transactionNote">メモ</label><input id="transactionNote" placeholder="購入 / 使用先など">
+              <button type="submit">在庫を更新</button>
+            </form>
+            <p class="muted">出庫で在庫がマイナスになる操作はできません。</p>
+          </section>
+        </div>
+
+        <section>
+          <h2>部品一覧</h2>
+          <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所で検索"><button type="button" class="secondary" id="reload">再読込</button></div>
+          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>在庫</th><th>最低</th><th>状態</th><th></th></tr></thead><tbody id="partsBody"></tbody></table></div>
+        </section>
+      </div>
+    </div>
   </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+    import { addDoc, collection, doc, getDocs, getFirestore, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+    import { firebaseConfig, isFirebaseConfigured } from './firebase-config.js';
+
+    const $ = (id) => document.getElementById(id);
+    const state = { app: null, auth: null, db: null, user: null, parts: [], editingId: '' };
+
+    function showStatus(title, text, showLogin = false) {
+      $('statusTitle').textContent = title;
+      $('statusText').textContent = text;
+      $('loginButton').classList.toggle('hidden', !showLogin);
+      $('statusScreen').classList.remove('hidden');
+      $('appScreen').classList.add('hidden');
+    }
+
+    function showMessage(message, error = false) {
+      $('message').textContent = message || '';
+      $('message').className = error ? 'error' : 'ok';
+    }
+
+    function toNumber(value, fallback = 0) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+    }
+
+    function normalizePart(snapshot) {
+      const data = snapshot.data();
+      return { part_id:snapshot.id, name:String(data.name || ''), category:String(data.category || ''), manufacturer:String(data.manufacturer || ''), location:String(data.location || ''), stock:toNumber(data.stock), min_stock:toNumber(data.min_stock), unit:String(data.unit || '個'), note:String(data.note || '') };
+    }
+
+    async function loadParts() {
+      const snapshot = await getDocs(collection(state.db, 'parts'));
+      state.parts = snapshot.docs.map(normalizePart).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+      render();
+    }
+
+    function render() {
+      const query = $('search').value.trim().toLowerCase();
+      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer].join(' ').toLowerCase().includes(query));
+      const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
+      $('partCount').textContent = state.parts.length;
+      $('totalStock').textContent = state.parts.reduce((sum, part) => sum + part.stock, 0);
+      $('lowStockCount').textContent = lowCount;
+      $('partsBody').innerHTML = visible.length ? visible.map((part) => {
+        const low = part.stock <= part.min_stock;
+        return `<tr class="${low ? 'low' : ''}"><td>${esc(part.name)}</td><td>${esc(part.category)}</td><td>${esc(part.location)}</td><td>${part.stock} ${esc(part.unit)}</td><td>${part.min_stock}</td><td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td><td><button class="edit" data-id="${esc(part.part_id)}">編集</button></td></tr>`;
+      }).join('') : '<tr><td colspan="7">該当する部品がありません。</td></tr>';
+      const current = $('transactionPartId').value;
+      $('transactionPartId').innerHTML = '<option value="">選択してください</option>' + state.parts.map((part) => `<option value="${esc(part.part_id)}">${esc(part.name)}</option>`).join('');
+      if (state.parts.some((part) => part.part_id === current)) $('transactionPartId').value = current;
+    }
+
+    function resetPartForm() {
+      $('partForm').reset();
+      state.editingId = '';
+      $('unit').value = '個';
+      $('initialStock').disabled = false;
+      $('partFormTitle').textContent = '部品を登録';
+    }
+
+    function editPart(id) {
+      const part = state.parts.find((item) => item.part_id === id);
+      if (!part) return;
+      state.editingId = id;
+      $('name').value = part.name;
+      $('category').value = part.category;
+      $('manufacturer').value = part.manufacturer;
+      $('location').value = part.location;
+      $('unit').value = part.unit;
+      $('minStock').value = part.min_stock;
+      $('note').value = part.note;
+      $('initialStock').value = part.stock;
+      $('initialStock').disabled = true;
+      $('partFormTitle').textContent = '部品を編集';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function savePart(event) {
+      event.preventDefault();
+      const name = $('name').value.trim();
+      if (!name) return;
+      const payload = { name, category:$('category').value.trim(), manufacturer:$('manufacturer').value.trim(), location:$('location').value.trim(), unit:$('unit').value.trim() || '個', min_stock:toNumber($('minStock').value), note:$('note').value.trim(), updatedAt:serverTimestamp(), updatedBy:state.user.email || state.user.uid };
+      try {
+        showMessage('保存中...');
+        if (state.editingId) {
+          await setDoc(doc(state.db, 'parts', state.editingId), payload, { merge:true });
+        } else {
+          await addDoc(collection(state.db, 'parts'), { ...payload, stock:Math.max(0, toNumber($('initialStock').value)), createdAt:serverTimestamp(), createdBy:state.user.email || state.user.uid });
+        }
+        resetPartForm();
+        await loadParts();
+        showMessage('保存しました。');
+      } catch (error) { showMessage(error.message || '保存に失敗しました。', true); }
+    }
+
+    async function recordTransaction(event) {
+      event.preventDefault();
+      const partId = $('transactionPartId').value;
+      const quantity = toNumber($('quantity').value);
+      if (!partId || quantity < 1) return;
+      try {
+        showMessage('更新中...');
+        const partRef = doc(state.db, 'parts', partId);
+        await runTransaction(state.db, async (transaction) => {
+          const partSnapshot = await transaction.get(partRef);
+          if (!partSnapshot.exists()) throw new Error('部品が見つかりません。');
+          const part = partSnapshot.data();
+          const currentStock = toNumber(part.stock);
+          const type = $('transactionType').value;
+          const stockAfter = type === 'IN' ? currentStock + quantity : currentStock - quantity;
+          if (stockAfter < 0) throw new Error('出庫後の在庫がマイナスになるため保存できません。');
+          transaction.update(partRef, { stock:stockAfter, updatedAt:serverTimestamp(), updatedBy:state.user.email || state.user.uid });
+          const transactionRef = doc(collection(state.db, 'transactions'));
+          transaction.set(transactionRef, { partId, timestamp:serverTimestamp(), type, quantity, note:$('transactionNote').value.trim(), operator:state.user.email || state.user.uid, stockAfter });
+        });
+        $('quantity').value = '';
+        $('transactionNote').value = '';
+        await loadParts();
+        showMessage('在庫を更新しました。');
+      } catch (error) { showMessage(error.message || '在庫更新に失敗しました。', true); }
+    }
+
+    async function startLogin() {
+      try { await signInWithRedirect(state.auth, new GoogleAuthProvider()); }
+      catch (error) { showStatus('ログインできませんでした', error.message || 'Googleログインに失敗しました。', true); }
+    }
+
+    function showApp(user) {
+      state.user = user;
+      $('userEmail').textContent = user.email || user.displayName || 'ログイン中';
+      $('userBar').classList.remove('hidden');
+      $('statusScreen').classList.add('hidden');
+      $('appScreen').classList.remove('hidden');
+      loadParts().catch((error) => showMessage(error.message || 'データを読み込めませんでした。', true));
+    }
+
+    async function boot() {
+      if (!isFirebaseConfigured) {
+        showStatus('Firebase設定が必要です', 'docs/firebase-config.jsにFirebaseのWebアプリ設定を貼り付けてください。手順はREADMEにあります。');
+        return;
+      }
+      state.app = initializeApp(firebaseConfig);
+      state.auth = getAuth(state.app);
+      state.db = getFirestore(state.app);
+      try { await getRedirectResult(state.auth); } catch (error) { showStatus('ログインに失敗しました', error.message || 'Googleログインに失敗しました。', true); return; }
+      onAuthStateChanged(state.auth, (user) => user ? showApp(user) : showStatus('ログインしてください', 'Googleアカウントでログインすると在庫管理を使えます。', true));
+    }
+
+    $('loginButton').addEventListener('click', startLogin);
+    $('logoutButton').addEventListener('click', () => signOut(state.auth));
+    $('partForm').addEventListener('submit', savePart);
+    $('transactionForm').addEventListener('submit', recordTransaction);
+    $('partsBody').addEventListener('click', (event) => { if (event.target.dataset.id) editPart(event.target.dataset.id); });
+    $('cancelEdit').addEventListener('click', resetPartForm);
+    $('reload').addEventListener('click', () => loadParts().catch((error) => showMessage(error.message || '再読込に失敗しました。', true)));
+    $('search').addEventListener('input', render);
+    boot().catch((error) => showStatus('起動できませんでした', error.message || 'Firebaseの設定を確認してください。'));
+  </script>
 </body>
 </html>
