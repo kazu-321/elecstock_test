@@ -334,8 +334,12 @@
     }
 
     function getTagValues(key) {
-      return [...new Set(state.parts.map((part) => normalizeTag(part[key])).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b, 'ja'));
+      const tags = new Map();
+      state.parts.map((part) => normalizeTag(part[key])).filter(Boolean).forEach((tag) => {
+        const normalizedKey = tag.toLocaleLowerCase('ja');
+        if (!tags.has(normalizedKey)) tags.set(normalizedKey, tag);
+      });
+      return [...tags.values()].sort((a, b) => a.localeCompare(b, 'ja'));
     }
 
     function renderTagOptions() {
@@ -487,7 +491,7 @@
       const visible = state.parts.filter((part) => {
         const searchable = [part.name, part.category, part.location, part.manufacturer, part.note, ...specEntries(part).flatMap((item) => [item.label, item.value])].join(' ').toLowerCase();
         return searchable.includes(queryText)
-          && FILTER_FIELDS.every(({ key }) => !filters[key] || part[key] === filters[key]);
+          && FILTER_FIELDS.every(({ key }) => !filters[key] || canonicalTag(key, part[key]) === filters[key]);
       });
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
