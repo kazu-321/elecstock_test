@@ -56,6 +56,7 @@
           <h2 id="partFormTitle">部品を登録</h2>
           <form id="partForm">
             <input type="hidden" id="part_id">
+            <p class="muted">部品IDは自動発行されます。入力不要です。</p>
             <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
             <div class="row">
               <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
@@ -93,7 +94,7 @@
       <section>
         <h2>部品一覧</h2>
         <div class="toolbar"><input id="search" placeholder="部品名・ID・場所で検索"><button type="button" class="secondary" id="reload">再読込</button></div>
-        <div class="table-wrap"><table><thead><tr><th>ID</th><th>部品名</th><th>カテゴリ</th><th>場所</th><th>在庫</th><th>最低</th><th>状態</th><th></th></tr></thead><tbody id="partsBody"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>在庫</th><th>最低</th><th>状態</th><th></th></tr></thead><tbody id="partsBody"></tbody></table></div>
       </section>
     </div>
   </main>
@@ -123,29 +124,29 @@
       $('totalStock').textContent = d.totalStock ?? 0;
       $('lowStockCount').textContent = d.lowStockCount ?? 0;
       const query = $('search').value.trim().toLowerCase();
-      const parts = appData.parts.filter((p) => [p.part_id,p.name,p.category,p.location].join(' ').toLowerCase().includes(query));
+      const parts = appData.parts.filter((p) => [p.name,p.category,p.location].join(' ').toLowerCase().includes(query));
       $('partsBody').innerHTML = parts.length ? parts.map((p) => {
         const low = p.stock <= p.min_stock;
         return `<tr class="${low ? 'low' : ''}">
-          <td>${esc(p.part_id)}</td><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${esc(p.location)}</td>
+          <td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${esc(p.location)}</td>
           <td>${p.stock} ${esc(p.unit)}</td><td>${p.min_stock}</td>
           <td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
           <td><button class="edit" data-id="${esc(p.part_id)}">編集</button></td></tr>`;
-      }).join('') : '<tr><td colspan="8">該当する部品がありません。</td></tr>';
+      }).join('') : '<tr><td colspan="7">該当する部品がありません。</td></tr>';
       const select = $('transaction_part_id');
       const selected = select.value;
-      select.innerHTML = '<option value="">選択してください</option>' + appData.parts.map((p) => `<option value="${esc(p.part_id)}">${esc(p.name)} (${esc(p.part_id)})</option>`).join('');
+      select.innerHTML = '<option value="">選択してください</option>' + appData.parts.map((p) => `<option value="${esc(p.part_id)}">${esc(p.name)}</option>`).join('');
       if (appData.parts.some((p) => p.part_id === selected)) select.value = selected;
     }
 
     function resetPartForm() {
-      $('partForm').reset(); $('part_id').value = ''; $('unit').value = '個'; $('initial_stock').disabled = false;
+      $('partForm').reset(); $('part_id').value = ''; $('part_id').disabled = false; $('unit').value = '個'; $('initial_stock').disabled = false;
       $('partFormTitle').textContent = '部品を登録';
     }
 
     function editPart(id) {
       const p = appData.parts.find((item) => item.part_id === id); if (!p) return;
-      $('part_id').value = p.part_id; $('name').value = p.name; $('category').value = p.category;
+      $('part_id').value = p.part_id; $('part_id').disabled = true; $('name').value = p.name; $('category').value = p.category;
       $('manufacturer').value = p.manufacturer; $('location').value = p.location; $('unit').value = p.unit;
       $('min_stock').value = p.min_stock; $('note').value = p.note; $('initial_stock').value = p.stock; $('initial_stock').disabled = true;
       $('partFormTitle').textContent = '部品を編集'; window.scrollTo({ top: 0, behavior: 'smooth' });

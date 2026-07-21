@@ -5,6 +5,7 @@ Spreadsheetをデータベースとして使う、電子部品の在庫管理Web
 ## できること
 
 - 部品の登録・編集
+- 部品IDの自動発行（UUID、ユーザー入力不要）
 - 入庫・出庫の記録
 - 在庫数の自動更新
 - 低在庫の表示
@@ -77,7 +78,16 @@ part_id | name | category | manufacturer | location | stock | min_stock | unit |
 transaction_id | timestamp | type | part_id | quantity | note | operator | stock_after
 ```
 
+`part_id`は内部管理用のUUIDです。ユーザーは入力・管理せず、Web画面から部品名で操作してください。
+
 在庫数を直接書き換えず、Web画面から入庫・出庫を記録してください。
+
+## GitHub Pages
+
+GitHub Pagesは入口ページとして使い、Spreadsheetを操作する本体はGAS Webアプリで動かします。
+GASの`google.script.run`はApps Script HTML画面専用のため、GitHub Pagesから直接置き換える構成にはしていません。
+
+リポジトリのSettings → Pagesで、公開元を`codex/inventory-mvp`ブランチの`/docs`に設定してください。
 
 ## 次に追加すると便利な機能
 

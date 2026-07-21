@@ -82,9 +82,9 @@ function getAppData() {
 
 function savePart(input) {
   const data = input || {};
-  const id = String(data.part_id || '').trim();
+  // New parts receive an internal UUID. Users do not need to know this ID.
+  const id = String(data.part_id || '').trim() || Utilities.getUuid();
   const name = String(data.name || '').trim();
-  if (!id) throw new Error('部品IDは必須です。');
   if (!name) throw new Error('部品名は必須です。');
 
   const minStock = integer_(data.min_stock, '最低在庫');

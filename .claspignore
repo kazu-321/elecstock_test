@@ -5,3 +5,4 @@ package-lock.json
 .claspignore
 node_modules/**
 .github/**
+docs/**
