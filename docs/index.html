@@ -22,7 +22,9 @@
     .card small { color:#64748b; display:block; }
     .card strong { display:block; font-size:28px; margin-top:4px; }
     .danger { color:var(--red); }
-    .grid { display:grid; grid-template-columns:minmax(280px,360px) 1fr; gap:16px; align-items:start; }
+    .page-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+    .page-toolbar h2 { margin-bottom:4px; }
+    .page-toolbar p { margin:0; }
     h2 { font-size:17px; margin:0 0 14px; }
     label { display:block; font-size:13px; color:#475569; margin:10px 0 4px; }
     input, select, textarea, button { width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:7px; font:inherit; }
@@ -36,11 +38,12 @@
     button.observe { background:#6d28d9; }
     button.history { color:#334155; background:#e2e8f0; }
     button.delete { color:#991b1b; background:#fee2e2; }
+    .page-toolbar button { width:auto; margin:0; padding:10px 16px; white-space:nowrap; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-bottom:12px; }
+    .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; margin-bottom:12px; }
     .toolbar button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
     .table-wrap { overflow:auto; }
-    table { width:100%; border-collapse:collapse; font-size:13px; min-width:780px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; min-width:720px; }
     th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:middle; }
     th { color:#475569; background:#f8fafc; }
     tr.low { background:#fff3f3; }
@@ -56,6 +59,12 @@
     dialog { width:min(94vw,520px); max-height:90vh; padding:0; border:0; border-radius:14px; box-shadow:0 10px 40px #0f172a40; }
     dialog::backdrop { background:#0f172a66; }
     .dialog-body { padding:20px; }
+    .dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .dialog-header h2 { margin-bottom:4px; }
+    .dialog-close { flex:0 0 auto; width:36px; height:36px; margin:0; padding:0; color:#475569; background:#f1f5f9; font-size:22px; line-height:1; }
+    .part-form { margin-top:14px; }
+    .form-actions { display:grid; gap:8px; margin-top:16px; }
+    .form-actions button { margin:0; }
     .dialog-actions { display:flex; gap:8px; margin-top:16px; }
     .dialog-actions button { margin:0; }
     .history-list { max-height:60vh; overflow:auto; }
@@ -66,11 +75,38 @@
     .delta-negative { color:var(--red); }
     code { padding:2px 4px; border-radius:4px; background:#f1f5f9; }
     @media (max-width:800px) {
-      .cards,.grid { grid-template-columns:1fr; }
+      .cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
       main { padding:12px; }
       header { padding:14px 12px; }
       header .header-inner { align-items:flex-start; }
       .user-name { max-width:145px; }
+    }
+    @media (max-width:640px) {
+      .page-toolbar { align-items:stretch; flex-direction:column; gap:10px; }
+      .page-toolbar button { width:100%; }
+      .cards { grid-template-columns:1fr 1fr; gap:8px; }
+      .card, section { padding:14px; }
+      .card strong { font-size:24px; }
+      .toolbar { grid-template-columns:1fr; }
+      .toolbar button { width:100%; }
+      .table-wrap { overflow:visible; }
+      table, tbody, tr, td { display:block; }
+      table { min-width:0; }
+      thead { display:none; }
+      tbody { display:grid; gap:12px; }
+      tr { padding:10px 12px; border:1px solid var(--line); border-radius:10px; box-shadow:0 2px 8px #183b5510; }
+      tr.low { background:#fff3f3; }
+      td { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--line); white-space:normal; text-align:right; }
+      td::before { content:attr(data-label); flex:0 0 72px; color:#64748b; font-size:12px; font-weight:600; text-align:left; }
+      td:first-child { display:block; padding-top:2px; text-align:left; }
+      td:first-child::before { display:none; }
+      td:last-child { display:block; padding-bottom:2px; border-bottom:0; text-align:left; }
+      td:last-child::before { display:block; margin-bottom:8px; }
+      .actions { min-width:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .actions button { width:100%; }
+      dialog { width:calc(100vw - 24px); max-height:calc(100vh - 24px); border-radius:12px; }
+      .dialog-body { padding:16px; }
+      .row { grid-template-columns:1fr; gap:0; }
     }
   </style>
 </head>
@@ -96,36 +132,44 @@
         <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
       </div>
 
-      <div class="grid">
-        <section>
-          <h2 id="partFormTitle">部品を登録</h2>
-          <form id="partForm">
-            <p class="muted">新しい部品は在庫0で登録されます。個数は一覧の「追加」から記録してください。</p>
-            <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
-            <div class="row">
-              <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
-              <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
-            </div>
-            <div class="row">
-              <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
-              <div><label for="unit">単位</label><input id="unit" value="個"></div>
-            </div>
-            <label for="minStock">補充目安</label><input id="minStock" type="number" min="0" value="0">
-            <label for="note">メモ</label><textarea id="note"></textarea>
-            <button type="submit">基本情報を保存</button>
-            <button type="button" class="secondary" id="cancelEdit">入力をリセット</button>
-          </form>
-        </section>
-
-        <section>
-          <h2>部品一覧</h2>
-          <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button></div>
-          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
-          <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
-        </section>
+      <div class="page-toolbar">
+        <div><h2>部品一覧</h2><p class="muted">追加・使用・観測・編集は各部品の操作から行えます。</p></div>
+        <button type="button" class="add" id="addPartButton">＋ 部品を追加</button>
+      </div>
+      <section>
+        <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button><button type="button" class="secondary" id="hardReload">キャッシュを無視して再読込</button></div>
+        <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
+        <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
       </div>
     </div>
   </main>
+
+  <dialog id="partDialog">
+    <div class="dialog-body">
+      <div class="dialog-header">
+        <div><h2 id="partFormTitle">部品を追加</h2><p id="partFormHint" class="muted">新しい部品は在庫0で登録されます。</p></div>
+        <button type="button" class="dialog-close" id="partDialogClose" aria-label="閉じる">×</button>
+      </div>
+      <form id="partForm" class="part-form">
+        <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
+        <div class="row">
+          <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
+          <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
+        </div>
+        <div class="row">
+          <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
+          <div><label for="unit">単位</label><input id="unit" value="個"></div>
+        </div>
+        <label for="minStock">補充目安</label><input id="minStock" type="number" min="0" value="0">
+        <label for="note">メモ</label><textarea id="note"></textarea>
+        <div class="form-actions">
+          <button type="submit" id="partSubmit">部品を追加</button>
+          <button type="button" class="secondary" id="cancelEdit">キャンセル</button>
+          <button type="button" class="delete hidden" id="deleteEditingPart">削除</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 
   <dialog id="operationDialog">
     <div class="dialog-body">
@@ -226,6 +270,12 @@
       render();
     }
 
+    function reloadWithoutCache() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('_reload', String(Date.now()));
+      window.location.replace(url.toString());
+    }
+
     function render() {
       const queryText = $('search').value.trim().toLowerCase();
       const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer, part.note].join(' ').toLowerCase().includes(queryText));
@@ -235,17 +285,16 @@
       $('partsBody').innerHTML = visible.length ? visible.map((part) => {
         const low = part.stock <= part.min_stock;
         return `<tr class="${low ? 'low' : ''}">
-          <td><strong>${esc(part.name)}</strong><div class="muted">${esc(part.manufacturer)}</div></td>
-          <td>${esc(part.category)}</td><td>${esc(part.location)}</td>
-          <td><strong>${part.stock}</strong> ${esc(part.unit)}</td>
-          <td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
-          <td><div class="actions">
+          <td data-label="部品名"><strong>${esc(part.name)}</strong><div class="muted">${esc(part.manufacturer)}</div></td>
+          <td data-label="カテゴリ">${esc(part.category)}</td><td data-label="場所">${esc(part.location)}</td>
+          <td data-label="推定在庫"><strong>${part.stock}</strong> ${esc(part.unit)}</td>
+          <td data-label="状態"><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
+          <td data-label="操作"><div class="actions">
             <button class="small add" data-action="ADD" data-id="${esc(part.part_id)}">追加</button>
             <button class="small use" data-action="USE" data-id="${esc(part.part_id)}">使用</button>
             <button class="small observe" data-action="OBSERVE" data-id="${esc(part.part_id)}">観測</button>
             <button class="small history" data-action="HISTORY" data-id="${esc(part.part_id)}">履歴</button>
             <button class="small history" data-action="EDIT" data-id="${esc(part.part_id)}">編集</button>
-            <button class="small delete" data-action="DELETE" data-id="${esc(part.part_id)}">削除</button>
           </div></td>
         </tr>`;
       }).join('') : '<tr><td colspan="6">該当する部品がありません。</td></tr>';
@@ -257,6 +306,20 @@
       $('unit').value = '個';
       $('minStock').value = '0';
       $('partFormTitle').textContent = '部品を登録';
+      $('partFormHint').textContent = '新しい部品は在庫0で登録されます。';
+      $('partSubmit').textContent = '部品を追加';
+      $('deleteEditingPart').classList.add('hidden');
+    }
+
+    function closePartDialog() {
+      if ($('partDialog').open) $('partDialog').close();
+      resetPartForm();
+    }
+
+    function addPart() {
+      resetPartForm();
+      $('partDialog').showModal();
+      setTimeout(() => $('name').focus(), 0);
     }
 
     function editPart(id) {
@@ -271,7 +334,11 @@
       $('minStock').value = part.min_stock;
       $('note').value = part.note;
       $('partFormTitle').textContent = '基本情報を編集';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      $('partFormHint').textContent = '部品情報を更新できます。';
+      $('partSubmit').textContent = '基本情報を更新';
+      $('deleteEditingPart').classList.remove('hidden');
+      $('partDialog').showModal();
+      setTimeout(() => $('name').focus(), 0);
     }
 
     async function savePart(event) {
@@ -283,9 +350,11 @@
         showMessage('保存中...');
         if (state.editingId) await setDoc(doc(state.db, 'parts', state.editingId), payload, { merge:true });
         else await addDoc(collection(state.db, 'parts'), { ...payload, stock:0, createdAt:serverTimestamp(), createdBy:displayName() });
+        const wasEditing = Boolean(state.editingId);
         resetPartForm();
+        $('partDialog').close();
         await loadParts();
-        showMessage('基本情報を保存しました。');
+        showMessage(wasEditing ? '基本情報を更新しました。' : '部品を追加しました。');
       } catch (error) { showMessage(error.message || '保存に失敗しました。', true); }
     }
 
@@ -347,7 +416,7 @@
           refs.slice(start, start + 450).forEach((ref) => batch.delete(ref));
           await batch.commit();
         }
-        if (state.editingId === id) resetPartForm();
+        if (state.editingId === id) closePartDialog();
         await loadParts();
         showMessage('部品と変更履歴を削除しました。');
       } catch (error) { showMessage(error.message || '削除に失敗しました。', true); }
@@ -413,7 +482,12 @@
 
     $('loginButton').addEventListener('click', startLogin);
     $('logoutButton').addEventListener('click', () => signOut(state.auth));
+    $('addPartButton').addEventListener('click', addPart);
     $('partForm').addEventListener('submit', savePart);
+    $('deleteEditingPart').addEventListener('click', () => {
+      if (state.editingId) deletePart(state.editingId);
+    });
+    $('partDialogClose').addEventListener('click', closePartDialog);
     $('operationForm').addEventListener('submit', recordOperation);
     $('operationCancel').addEventListener('click', () => $('operationDialog').close());
     $('historyClose').addEventListener('click', () => $('historyDialog').close());
@@ -423,11 +497,12 @@
       const action = button.dataset.action;
       if (action === 'EDIT') editPart(button.dataset.id);
       else if (action === 'HISTORY') openHistory(button.dataset.id);
-      else if (action === 'DELETE') deletePart(button.dataset.id);
       else openOperation(button.dataset.id, action);
     });
-    $('cancelEdit').addEventListener('click', resetPartForm);
+    $('cancelEdit').addEventListener('click', closePartDialog);
+    $('partDialog').addEventListener('close', resetPartForm);
     $('reload').addEventListener('click', () => loadParts().catch((error) => showMessage(error.message || '再読込に失敗しました。', true)));
+    $('hardReload').addEventListener('click', reloadWithoutCache);
     $('search').addEventListener('input', render);
     boot().catch((error) => showStatus('起動できませんでした', error.message || 'Firebaseの設定を確認してください。'));
   </script>
