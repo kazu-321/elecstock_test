@@ -47,10 +47,19 @@
     th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:middle; }
     th { color:#475569; background:#f8fafc; }
     tr.low { background:#fff3f3; }
-    .pill { display:inline-block; padding:3px 7px; border-radius:99px; font-size:12px; background:#dcfce7; color:var(--green); }
-    .pill.low { background:#fee2e2; color:var(--red); }
     .actions { display:flex; flex-wrap:wrap; gap:5px; min-width:260px; }
     .muted { color:#64748b; font-size:12px; }
+    .field-hint { margin:4px 0 0; color:#64748b; font-size:11px; line-height:1.5; }
+    .genre-details { margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+    .genre-details h3 { margin:0 0 8px; font-size:14px; }
+    .spec-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .spec-grid label { margin-top:8px; }
+    .custom-specs { margin-top:14px; }
+    .custom-specs h4 { margin:0 0 8px; font-size:13px; }
+    .custom-spec-row { display:grid; grid-template-columns:minmax(90px,0.8fr) minmax(0,1.2fr) auto; gap:6px; margin-top:6px; }
+    .custom-spec-row button { width:auto; margin:0; padding:7px 9px; }
+    .add-custom-spec { width:auto; margin-top:8px; padding:7px 10px; color:#334155; background:#e2e8f0; font-size:12px; }
+    .spec-summary { color:#475569; white-space:normal; line-height:1.5; }
     .user { display:flex; align-items:center; gap:8px; font-size:12px; }
     .user-name { max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #message { min-height:22px; margin:8px 0; font-size:13px; }
@@ -107,6 +116,8 @@
       dialog { width:calc(100vw - 24px); max-height:calc(100vh - 24px); border-radius:12px; }
       .dialog-body { padding:16px; }
       .row { grid-template-columns:1fr; gap:0; }
+      .spec-grid { grid-template-columns:1fr; gap:0; }
+      .custom-spec-row { grid-template-columns:1fr 1fr auto; }
     }
   </style>
 </head>
@@ -137,8 +148,8 @@
         <button type="button" class="add" id="addPartButton">＋ 部品を追加</button>
       </div>
       <section>
-        <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button><button type="button" class="secondary" id="hardReload">キャッシュを無視して再読込</button></div>
-        <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
+        <div class="toolbar"><input id="search" placeholder="型番・ジャンル・メーカー・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button><button type="button" class="secondary" id="hardReload">キャッシュを無視して再読込</button></div>
+        <div class="table-wrap"><table><thead><tr><th>部品名</th><th>ジャンル</th><th>保管場所</th><th>推定在庫</th><th>仕様</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
         <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
       </div>
     </div>
@@ -151,15 +162,29 @@
         <button type="button" class="dialog-close" id="partDialogClose" aria-label="閉じる">×</button>
       </div>
       <form id="partForm" class="part-form">
-        <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
+        <label for="name">型番・部品名 *</label><input id="name" required placeholder="例: RC0603FR-0710KL">
         <div class="row">
-          <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
-          <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
+          <div>
+            <label for="category">ジャンル</label>
+            <input id="category" list="categoryTags" placeholder="例: チップ抵抗" autocomplete="off">
+            <datalist id="categoryTags"></datalist>
+          </div>
+          <div>
+            <label for="manufacturer">メーカー</label>
+            <input id="manufacturer" list="manufacturerTags" placeholder="候補から選択または入力" autocomplete="off">
+            <datalist id="manufacturerTags"></datalist>
+          </div>
         </div>
         <div class="row">
-          <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
+          <div>
+            <label for="location">保管場所</label>
+            <input id="location" list="locationTags" placeholder="例: 棚A-01" autocomplete="off">
+            <datalist id="locationTags"></datalist>
+          </div>
           <div><label for="unit">単位</label><input id="unit" value="個"></div>
         </div>
+        <p class="field-hint">ジャンル・メーカー・保管場所は、候補を選ぶか新しい値を入力できます。使われなくなった候補は自動的に消えます。</p>
+        <div id="genreDetails" class="genre-details"></div>
         <label for="minStock">補充目安</label><input id="minStock" type="number" min="0" value="0">
         <label for="note">メモ</label><textarea id="note"></textarea>
         <div class="form-actions">
@@ -202,6 +227,24 @@
 
     const $ = (id) => document.getElementById(id);
     const state = { app:null, auth:null, db:null, user:null, parts:[], editingId:'', operation:null };
+    const TAG_FIELDS = [
+      { key:'category', listId:'categoryTags' },
+      { key:'manufacturer', listId:'manufacturerTags' },
+      { key:'location', listId:'locationTags' }
+    ];
+    const GENRE_SPEC_FIELDS = {
+      '抵抗': [
+        { key:'resistance', label:'抵抗値', placeholder:'例: 10kΩ' },
+        { key:'tolerance', label:'許容差', placeholder:'例: ±1%' },
+        { key:'power', label:'定格電力', placeholder:'例: 0.25W' }
+      ],
+      'チップ抵抗': [
+        { key:'resistance', label:'抵抗値', placeholder:'例: 10kΩ' },
+        { key:'size', label:'サイズ', placeholder:'例: 0603' },
+        { key:'tolerance', label:'許容差', placeholder:'例: ±1%' },
+        { key:'power', label:'定格電力', placeholder:'例: 0.1W' }
+      ]
+    };
 
     function showStatus(title, text, showLogin = false) {
       $('statusTitle').textContent = title;
@@ -219,6 +262,24 @@
     function toNumber(value, fallback = 0) {
       const number = Number(value);
       return Number.isFinite(number) ? number : fallback;
+    }
+
+    function normalizeTag(value) {
+      return String(value ?? '').trim().replace(/\s+/g, ' ');
+    }
+
+    function normalizeSpecs(value) {
+      if (!value || typeof value !== 'object') return {};
+      const specs = {};
+      Object.entries(value).forEach(([key, rawValue]) => {
+        if (key === 'custom') return;
+        const normalized = normalizeTag(rawValue);
+        if (normalized) specs[key] = normalized;
+      });
+      specs.custom = Array.isArray(value.custom)
+        ? value.custom.map((item) => ({ label:normalizeTag(item?.label), value:normalizeTag(item?.value) })).filter((item) => item.label && item.value)
+        : [];
+      return specs;
     }
 
     function esc(value) {
@@ -241,6 +302,84 @@
       return state.user?.displayName || 'Googleユーザー';
     }
 
+    function getTagValues(key) {
+      return [...new Set(state.parts.map((part) => normalizeTag(part[key])).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function renderTagOptions() {
+      TAG_FIELDS.forEach(({ key, listId }) => {
+        $(listId).innerHTML = getTagValues(key).map((value) => `<option value="${esc(value)}"></option>`).join('');
+      });
+    }
+
+    function canonicalTag(key, value) {
+      const normalized = normalizeTag(value);
+      if (!normalized) return '';
+      const existing = getTagValues(key).find((tag) => tag.toLocaleLowerCase('ja') === normalized.toLocaleLowerCase('ja'));
+      return existing || normalized;
+    }
+
+    function getGenreSpecFields(genre) {
+      const normalized = normalizeTag(genre);
+      return GENRE_SPEC_FIELDS[normalized] || [];
+    }
+
+    function renderGenreDetails(specs = {}) {
+      const genre = normalizeTag($('category').value);
+      const fields = getGenreSpecFields(genre);
+      if (!genre) {
+        $('genreDetails').innerHTML = '';
+        return;
+      }
+      const fieldMarkup = fields.map((field) => `<div><label for="spec_${field.key}">${field.label}</label><input id="spec_${field.key}" data-spec-key="${field.key}" value="${esc(specs[field.key] || '')}" placeholder="${field.placeholder}"></div>`).join('');
+      $('genreDetails').innerHTML = `
+        <h3>${esc(genre)}の追加情報</h3>
+        ${fieldMarkup ? `<div class="spec-grid">${fieldMarkup}</div>` : '<p class="muted">下の「その他の追加情報」から項目を追加できます。</p>'}
+        <div class="custom-specs">
+          <h4>その他の追加情報</h4>
+          <div id="customSpecRows"></div>
+          <button type="button" class="add-custom-spec" id="addCustomSpec">＋項目を追加</button>
+        </div>`;
+      (specs.custom || []).forEach((item) => appendCustomSpecRow(item.label, item.value));
+    }
+
+    function appendCustomSpecRow(label = '', value = '') {
+      const row = document.createElement('div');
+      row.className = 'custom-spec-row';
+      row.innerHTML = `<input data-custom-label placeholder="項目名" value="${esc(label)}"><input data-custom-value placeholder="値" value="${esc(value)}"><button type="button" class="secondary remove-custom-spec" aria-label="項目を削除">削除</button>`;
+      $('customSpecRows').appendChild(row);
+    }
+
+    function collectSpecs() {
+      const specs = {};
+      document.querySelectorAll('#genreDetails [data-spec-key]').forEach((input) => {
+        const value = normalizeTag(input.value);
+        if (value) specs[input.dataset.specKey] = value;
+      });
+      const custom = [];
+      document.querySelectorAll('#genreDetails .custom-spec-row').forEach((row) => {
+        const label = normalizeTag(row.querySelector('[data-custom-label]')?.value);
+        const value = normalizeTag(row.querySelector('[data-custom-value]')?.value);
+        if (label && value) custom.push({ label, value });
+      });
+      if (custom.length) specs.custom = custom;
+      return specs;
+    }
+
+    function specEntries(part) {
+      const entries = getGenreSpecFields(part.category)
+        .filter((field) => part.specs?.[field.key])
+        .map((field) => ({ label:field.label, value:part.specs[field.key] }));
+      (part.specs?.custom || []).forEach((item) => entries.push(item));
+      return entries;
+    }
+
+    function specSummary(part) {
+      const entries = specEntries(part);
+      return entries.length ? entries.map((item) => `${esc(item.label)}: ${esc(item.value)}`).join('<br>') : '<span class="muted">—</span>';
+    }
+
     function normalizePart(snapshot) {
       const data = snapshot.data();
       return {
@@ -253,6 +392,7 @@
         min_stock:toNumber(data.min_stock),
         unit:String(data.unit || '個'),
         note:String(data.note || ''),
+        specs:normalizeSpecs(data.specs),
         lastObservedStock:data.lastObservedStock == null ? null : toNumber(data.lastObservedStock),
         lastObservedAt:data.lastObservedAt || null,
         lastObservedBy:String(data.lastObservedBy || ''),
@@ -267,6 +407,7 @@
     async function loadParts() {
       const snapshot = await getDocs(collection(state.db, 'parts'));
       state.parts = snapshot.docs.map(normalizePart).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+      renderTagOptions();
       render();
     }
 
@@ -286,9 +427,9 @@
         const low = part.stock <= part.min_stock;
         return `<tr class="${low ? 'low' : ''}">
           <td data-label="部品名"><strong>${esc(part.name)}</strong><div class="muted">${esc(part.manufacturer)}</div></td>
-          <td data-label="カテゴリ">${esc(part.category)}</td><td data-label="場所">${esc(part.location)}</td>
+          <td data-label="ジャンル">${esc(part.category)}</td><td data-label="保管場所">${esc(part.location)}</td>
           <td data-label="推定在庫"><strong>${part.stock}</strong> ${esc(part.unit)}</td>
-          <td data-label="状態"><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
+          <td data-label="仕様" class="spec-summary">${specSummary(part)}</td>
           <td data-label="操作"><div class="actions">
             <button class="small add" data-action="ADD" data-id="${esc(part.part_id)}">追加</button>
             <button class="small use" data-action="USE" data-id="${esc(part.part_id)}">使用</button>
@@ -309,6 +450,7 @@
       $('partFormHint').textContent = '新しい部品は在庫0で登録されます。';
       $('partSubmit').textContent = '部品を追加';
       $('deleteEditingPart').classList.add('hidden');
+      renderGenreDetails({});
     }
 
     function closePartDialog() {
@@ -333,6 +475,7 @@
       $('unit').value = part.unit;
       $('minStock').value = part.min_stock;
       $('note').value = part.note;
+      renderGenreDetails(part.specs);
       $('partFormTitle').textContent = '基本情報を編集';
       $('partFormHint').textContent = '部品情報を更新できます。';
       $('partSubmit').textContent = '基本情報を更新';
@@ -345,7 +488,7 @@
       event.preventDefault();
       const name = $('name').value.trim();
       if (!name) return;
-      const payload = { name, category:$('category').value.trim(), manufacturer:$('manufacturer').value.trim(), location:$('location').value.trim(), unit:$('unit').value.trim() || '個', min_stock:Math.max(0, toNumber($('minStock').value)), note:$('note').value.trim(), updatedAt:serverTimestamp(), updatedBy:displayName() };
+      const payload = { name, category:canonicalTag('category', $('category').value), manufacturer:canonicalTag('manufacturer', $('manufacturer').value), location:canonicalTag('location', $('location').value), unit:$('unit').value.trim() || '個', min_stock:Math.max(0, toNumber($('minStock').value)), note:$('note').value.trim(), specs:collectSpecs(), updatedAt:serverTimestamp(), updatedBy:displayName() };
       try {
         showMessage('保存中...');
         if (state.editingId) await setDoc(doc(state.db, 'parts', state.editingId), payload, { merge:true });
@@ -488,6 +631,11 @@
       if (state.editingId) deletePart(state.editingId);
     });
     $('partDialogClose').addEventListener('click', closePartDialog);
+    $('category').addEventListener('change', () => renderGenreDetails(collectSpecs()));
+    $('genreDetails').addEventListener('click', (event) => {
+      if (event.target.id === 'addCustomSpec') appendCustomSpecRow();
+      if (event.target.classList.contains('remove-custom-spec')) event.target.closest('.custom-spec-row').remove();
+    });
     $('operationForm').addEventListener('submit', recordOperation);
     $('operationCancel').addEventListener('click', () => $('operationDialog').close());
     $('historyClose').addEventListener('click', () => $('historyDialog').close());

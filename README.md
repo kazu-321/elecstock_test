@@ -27,7 +27,9 @@ GASとSpreadsheetは現在のPages版では使いません。古いGAS版のフ�
 - 低在庫の表示
 - Googleアカウント表示名・時刻・変更量・変更後推定在庫の履歴表示
 - 観測時の「実測値−観測前の推定値」のズレ表示
-- 部品名・カテゴリ・場所・メモで検索
+- 型番・ジャンル・メーカー・保管場所・メモで検索
+- ジャンル・メーカー・保管場所の候補入力（未使用の候補は自動整理）
+- ジャンル別の追加仕様（抵抗値・サイズなど）
 
 ## Firebaseの初期設定
 
@@ -80,12 +82,14 @@ https://kazu-321.github.io/elecstock_test/
 ### `parts`コレクション
 
 ```text
-name | category | manufacturer | location | stock | min_stock | unit | note
+name | category（ジャンル） | manufacturer | location | stock | min_stock | unit | note | specs
 ```
 
 ドキュメントIDが内部部品IDです。画面には表示せず、ユーザーは部品名で操作します。
 
 在庫は「推定在庫」として管理します。追加・使用で推定値を動かし、観測では実測値に合わせます。観測時の差分は履歴に残ります。
+
+ジャンル・メーカー・保管場所の候補は、部品で現在使われている値から自動生成します。ジャンル別の追加仕様は`specs`に保存し、抵抗・チップ抵抗には専用項目、それ以外のジャンルには任意の項目を追加できます。
 
 ### `transactions`コレクション
 
