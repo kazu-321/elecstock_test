@@ -42,6 +42,10 @@
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; margin-bottom:12px; }
     .toolbar button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
+    .filter-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:8px; align-items:end; margin-bottom:14px; }
+    .filter-grid label { margin:0; }
+    .filter-grid select, .filter-grid button { margin:0; }
+    .filter-grid button { width:auto; white-space:nowrap; }
     .table-wrap { overflow:auto; }
     table { width:100%; border-collapse:collapse; font-size:13px; min-width:720px; }
     th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:middle; }
@@ -50,6 +54,14 @@
     .actions { display:flex; flex-wrap:wrap; gap:5px; min-width:260px; }
     .muted { color:#64748b; font-size:12px; }
     .field-hint { margin:4px 0 0; color:#64748b; font-size:11px; line-height:1.5; }
+    .tag-combobox { position:relative; }
+    .tag-input-row { display:flex; gap:6px; }
+    .tag-input-row input { min-width:0; flex:1; }
+    .tag-toggle { flex:0 0 38px; width:38px; margin:0; padding:0; color:#334155; background:#e2e8f0; font-size:17px; line-height:1; }
+    .tag-options { position:absolute; z-index:20; top:calc(100% + 4px); left:0; right:0; max-height:190px; overflow:auto; padding:4px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; box-shadow:0 8px 22px #0f172a26; }
+    .tag-options button { width:100%; margin:0; padding:8px 9px; border-radius:5px; color:#334155; background:#fff; text-align:left; font-size:13px; font-weight:500; }
+    .tag-options button:hover, .tag-options button:focus { background:#eff6ff; }
+    .tag-empty { padding:8px 9px; color:#64748b; font-size:12px; line-height:1.5; }
     .genre-details { margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
     .genre-details h3 { margin:0 0 8px; font-size:14px; }
     .spec-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -98,6 +110,8 @@
       .card strong { font-size:24px; }
       .toolbar { grid-template-columns:1fr; }
       .toolbar button { width:100%; }
+      .filter-grid { grid-template-columns:1fr 1fr; }
+      .filter-grid button { width:100%; grid-column:1 / -1; }
       .table-wrap { overflow:visible; }
       table, tbody, tr, td { display:block; }
       table { min-width:0; }
@@ -149,6 +163,12 @@
       </div>
       <section>
         <div class="toolbar"><input id="search" placeholder="型番・ジャンル・メーカー・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button><button type="button" class="secondary" id="hardReload">キャッシュを無視して再読込</button></div>
+        <div class="filter-grid">
+          <label for="filterCategory">ジャンル<select id="filterCategory"><option value="">すべて</option></select></label>
+          <label for="filterManufacturer">メーカー<select id="filterManufacturer"><option value="">すべて</option></select></label>
+          <label for="filterLocation">保管場所<select id="filterLocation"><option value="">すべて</option></select></label>
+          <button type="button" class="secondary" id="clearFilters">絞り込みをクリア</button>
+        </div>
         <div class="table-wrap"><table><thead><tr><th>部品名</th><th>ジャンル</th><th>保管場所</th><th>推定在庫</th><th>仕様</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
         <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
       </div>
@@ -166,20 +186,26 @@
         <div class="row">
           <div>
             <label for="category">ジャンル</label>
-            <input id="category" list="categoryTags" placeholder="例: チップ抵抗" autocomplete="off">
-            <datalist id="categoryTags"></datalist>
+            <div class="tag-combobox" data-tag-field="category">
+              <div class="tag-input-row"><input id="category" placeholder="例: チップ抵抗" autocomplete="off"><button type="button" class="tag-toggle" data-tag-toggle="category" aria-label="ジャンル候補を表示">⌄</button></div>
+              <div id="categoryTags" class="tag-options hidden"></div>
+            </div>
           </div>
           <div>
             <label for="manufacturer">メーカー</label>
-            <input id="manufacturer" list="manufacturerTags" placeholder="候補から選択または入力" autocomplete="off">
-            <datalist id="manufacturerTags"></datalist>
+            <div class="tag-combobox" data-tag-field="manufacturer">
+              <div class="tag-input-row"><input id="manufacturer" placeholder="候補から選択または入力" autocomplete="off"><button type="button" class="tag-toggle" data-tag-toggle="manufacturer" aria-label="メーカー候補を表示">⌄</button></div>
+              <div id="manufacturerTags" class="tag-options hidden"></div>
+            </div>
           </div>
         </div>
         <div class="row">
           <div>
             <label for="location">保管場所</label>
-            <input id="location" list="locationTags" placeholder="例: 棚A-01" autocomplete="off">
-            <datalist id="locationTags"></datalist>
+            <div class="tag-combobox" data-tag-field="location">
+              <div class="tag-input-row"><input id="location" placeholder="例: 棚A-01" autocomplete="off"><button type="button" class="tag-toggle" data-tag-toggle="location" aria-label="保管場所候補を表示">⌄</button></div>
+              <div id="locationTags" class="tag-options hidden"></div>
+            </div>
           </div>
           <div><label for="unit">単位</label><input id="unit" value="個"></div>
         </div>
@@ -228,9 +254,14 @@
     const $ = (id) => document.getElementById(id);
     const state = { app:null, auth:null, db:null, user:null, parts:[], editingId:'', operation:null };
     const TAG_FIELDS = [
-      { key:'category', listId:'categoryTags' },
-      { key:'manufacturer', listId:'manufacturerTags' },
-      { key:'location', listId:'locationTags' }
+      { key:'category', inputId:'category', menuId:'categoryTags' },
+      { key:'manufacturer', inputId:'manufacturer', menuId:'manufacturerTags' },
+      { key:'location', inputId:'location', menuId:'locationTags' }
+    ];
+    const FILTER_FIELDS = [
+      { key:'category', selectId:'filterCategory' },
+      { key:'manufacturer', selectId:'filterManufacturer' },
+      { key:'location', selectId:'filterLocation' }
     ];
     const GENRE_SPEC_FIELDS = {
       '抵抗': [
@@ -308,8 +339,41 @@
     }
 
     function renderTagOptions() {
-      TAG_FIELDS.forEach(({ key, listId }) => {
-        $(listId).innerHTML = getTagValues(key).map((value) => `<option value="${esc(value)}"></option>`).join('');
+      TAG_FIELDS.forEach(({ key, menuId }) => {
+        const values = getTagValues(key);
+        $(menuId).innerHTML = values.map((value) => `<button type="button" data-tag-option="${esc(value)}">${esc(value)}</button>`).join('')
+          + '<div class="tag-empty">候補はありません。入力した値を新しいタグとして保存できます。</div>';
+      });
+      FILTER_FIELDS.forEach(({ key, selectId }) => {
+        const select = $(selectId);
+        const selected = select.value;
+        select.innerHTML = '<option value="">すべて</option>' + getTagValues(key).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('');
+        if (getTagValues(key).includes(selected)) select.value = selected;
+      });
+    }
+
+    function toggleTagMenu(field, open) {
+      const menu = $(field.menuId);
+      if (open) {
+        const query = normalizeTag($(field.inputId).value).toLocaleLowerCase('ja');
+        const options = [...menu.querySelectorAll('[data-tag-option]')];
+        let visible = 0;
+        options.forEach((option) => {
+          const matches = !query || option.dataset.tagOption.toLocaleLowerCase('ja').includes(query);
+          option.classList.toggle('hidden', !matches);
+          if (matches) visible += 1;
+        });
+        const empty = menu.querySelector('.tag-empty');
+        if (empty) empty.classList.toggle('hidden', visible > 0);
+        menu.classList.remove('hidden');
+      } else {
+        menu.classList.add('hidden');
+      }
+    }
+
+    function closeTagMenus(exceptMenuId = '') {
+      TAG_FIELDS.forEach(({ menuId }) => {
+        if (menuId !== exceptMenuId) $(menuId).classList.add('hidden');
       });
     }
 
@@ -419,7 +483,12 @@
 
     function render() {
       const queryText = $('search').value.trim().toLowerCase();
-      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer, part.note].join(' ').toLowerCase().includes(queryText));
+      const filters = Object.fromEntries(FILTER_FIELDS.map(({ key, selectId }) => [key, $(selectId).value]));
+      const visible = state.parts.filter((part) => {
+        const searchable = [part.name, part.category, part.location, part.manufacturer, part.note, ...specEntries(part).flatMap((item) => [item.label, item.value])].join(' ').toLowerCase();
+        return searchable.includes(queryText)
+          && FILTER_FIELDS.every(({ key }) => !filters[key] || part[key] === filters[key]);
+      });
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
       $('lowStockCount').textContent = lowCount;
@@ -632,6 +701,35 @@
     });
     $('partDialogClose').addEventListener('click', closePartDialog);
     $('category').addEventListener('change', () => renderGenreDetails(collectSpecs()));
+    $('partForm').addEventListener('focusin', (event) => {
+      const field = TAG_FIELDS.find((item) => item.inputId === event.target.id);
+      if (!field) return;
+      closeTagMenus(field.menuId);
+      toggleTagMenu(field, true);
+    });
+    $('partForm').addEventListener('input', (event) => {
+      const field = TAG_FIELDS.find((item) => item.inputId === event.target.id);
+      if (field) toggleTagMenu(field, true);
+    });
+    $('partForm').addEventListener('click', (event) => {
+      const toggle = event.target.closest('[data-tag-toggle]');
+      if (toggle) {
+        const field = TAG_FIELDS.find((item) => item.key === toggle.dataset.tagToggle);
+        if (!field) return;
+        const menu = $(field.menuId);
+        closeTagMenus(field.menuId);
+        toggleTagMenu(field, menu.classList.contains('hidden'));
+        return;
+      }
+      const option = event.target.closest('[data-tag-option]');
+      if (!option) return;
+      const combo = option.closest('[data-tag-field]');
+      const field = TAG_FIELDS.find((item) => item.key === combo?.dataset.tagField);
+      if (!field) return;
+      $(field.inputId).value = option.dataset.tagOption;
+      if (field.key === 'category') renderGenreDetails(collectSpecs());
+      toggleTagMenu(field, false);
+    });
     $('genreDetails').addEventListener('click', (event) => {
       if (event.target.id === 'addCustomSpec') appendCustomSpecRow();
       if (event.target.classList.contains('remove-custom-spec')) event.target.closest('.custom-spec-row').remove();
@@ -652,6 +750,15 @@
     $('reload').addEventListener('click', () => loadParts().catch((error) => showMessage(error.message || '再読込に失敗しました。', true)));
     $('hardReload').addEventListener('click', reloadWithoutCache);
     $('search').addEventListener('input', render);
+    FILTER_FIELDS.forEach(({ selectId }) => $(selectId).addEventListener('change', render));
+    $('clearFilters').addEventListener('click', () => {
+      $('search').value = '';
+      FILTER_FIELDS.forEach(({ selectId }) => { $(selectId).value = ''; });
+      render();
+    });
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.tag-combobox')) closeTagMenus();
+    });
     boot().catch((error) => showStatus('起動できませんでした', error.message || 'Firebaseの設定を確認してください。'));
   </script>
 </body>
