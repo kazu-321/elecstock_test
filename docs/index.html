@@ -46,6 +46,9 @@
     .filter-grid label { margin:0; }
     .filter-grid select, .filter-grid button { margin:0; }
     .filter-grid button { width:auto; white-space:nowrap; }
+    .spec-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:-4px 0 14px; padding:10px; border-radius:8px; background:#f8fafc; }
+    .spec-filter-grid label { margin:0; }
+    .spec-filter-grid select { margin-top:4px; }
     .table-wrap { overflow:auto; }
     table { width:100%; border-collapse:collapse; font-size:13px; min-width:720px; }
     th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:middle; }
@@ -112,6 +115,7 @@
       .toolbar button { width:100%; }
       .filter-grid { grid-template-columns:1fr 1fr; }
       .filter-grid button { width:100%; grid-column:1 / -1; }
+      .spec-filter-grid { grid-template-columns:1fr 1fr; }
       .table-wrap { overflow:visible; }
       table, tbody, tr, td { display:block; }
       table { min-width:0; }
@@ -169,6 +173,7 @@
           <label for="filterLocation">保管場所<select id="filterLocation"><option value="">すべて</option></select></label>
           <button type="button" class="secondary" id="clearFilters">絞り込みをクリア</button>
         </div>
+        <div id="specFilters" class="spec-filter-grid hidden"></div>
         <div class="table-wrap"><table><thead><tr><th>部品名</th><th>ジャンル</th><th>保管場所</th><th>推定在庫</th><th>仕様</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
         <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
       </div>
@@ -354,6 +359,63 @@
         select.innerHTML = '<option value="">すべて</option>' + getTagValues(key).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('');
         if (getTagValues(key).includes(selected)) select.value = selected;
       });
+      renderSpecFilters();
+    }
+
+    function uniqueValues(values) {
+      const result = new Map();
+      values.map((value) => normalizeTag(value)).filter(Boolean).forEach((value) => {
+        const key = value.toLocaleLowerCase('ja');
+        if (!result.has(key)) result.set(key, value);
+      });
+      return [...result.values()].sort((a, b) => a.localeCompare(b, 'ja'));
+    }
+
+    function getSpecFilterFields() {
+      const genre = $('filterCategory').value;
+      if (!genre) return [];
+      const genreParts = state.parts.filter((part) => canonicalTag('category', part.category) === genre);
+      const fields = getGenreSpecFields(genre).map((field) => ({ key:field.key, label:field.label, values:uniqueValues(genreParts.map((part) => part.specs?.[field.key])) }));
+      const customFields = new Map();
+      genreParts.forEach((part) => (part.specs?.custom || []).forEach((item) => {
+        const key = item.label.toLocaleLowerCase('ja');
+        if (!customFields.has(key)) customFields.set(key, { key:`custom:${key}`, label:item.label, values:[] });
+        customFields.get(key).values.push(item.value);
+      }));
+      return [...fields, ...[...customFields.values()].map((field) => ({ ...field, values:uniqueValues(field.values) }))];
+    }
+
+    function collectSpecFilters() {
+      return Object.fromEntries([...document.querySelectorAll('#specFilters [data-spec-filter]')]
+        .filter((select) => select.value)
+        .map((select) => [select.dataset.specFilter, select.value]));
+    }
+
+    function matchesSpecFilters(part, filters) {
+      return Object.entries(filters).every(([key, expected]) => {
+        if (key.startsWith('custom:')) {
+          const label = key.slice(7);
+          return (part.specs?.custom || []).some((item) => item.label.toLocaleLowerCase('ja') === label && normalizeTag(item.value).toLocaleLowerCase('ja') === normalizeTag(expected).toLocaleLowerCase('ja'));
+        }
+        return normalizeTag(part.specs?.[key]).toLocaleLowerCase('ja') === normalizeTag(expected).toLocaleLowerCase('ja');
+      });
+    }
+
+    function renderSpecFilters() {
+      const container = $('specFilters');
+      const previous = collectSpecFilters();
+      const fields = getSpecFilterFields();
+      if (!fields.length) {
+        container.innerHTML = '';
+        container.classList.add('hidden');
+        return;
+      }
+      container.innerHTML = fields.map((field) => `<label>${esc(field.label)}<select data-spec-filter="${esc(field.key)}"><option value="">すべて</option>${field.values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('')}</select></label>`).join('');
+      fields.forEach((field) => {
+        const select = [...container.querySelectorAll('[data-spec-filter]')].find((item) => item.dataset.specFilter === field.key);
+        if (select && field.values.includes(previous[field.key])) select.value = previous[field.key];
+      });
+      container.classList.remove('hidden');
     }
 
     function toggleTagMenu(field, open) {
@@ -488,10 +550,12 @@
     function render() {
       const queryText = $('search').value.trim().toLowerCase();
       const filters = Object.fromEntries(FILTER_FIELDS.map(({ key, selectId }) => [key, $(selectId).value]));
+      const specFilters = collectSpecFilters();
       const visible = state.parts.filter((part) => {
         const searchable = [part.name, part.category, part.location, part.manufacturer, part.note, ...specEntries(part).flatMap((item) => [item.label, item.value])].join(' ').toLowerCase();
         return searchable.includes(queryText)
-          && FILTER_FIELDS.every(({ key }) => !filters[key] || canonicalTag(key, part[key]) === filters[key]);
+          && FILTER_FIELDS.every(({ key }) => !filters[key] || canonicalTag(key, part[key]) === filters[key])
+          && matchesSpecFilters(part, specFilters);
       });
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
@@ -754,10 +818,15 @@
     $('reload').addEventListener('click', () => loadParts().catch((error) => showMessage(error.message || '再読込に失敗しました。', true)));
     $('hardReload').addEventListener('click', reloadWithoutCache);
     $('search').addEventListener('input', render);
-    FILTER_FIELDS.forEach(({ selectId }) => $(selectId).addEventListener('change', render));
+    FILTER_FIELDS.forEach(({ key, selectId }) => $(selectId).addEventListener('change', () => {
+      if (key === 'category') renderSpecFilters();
+      render();
+    }));
+    $('specFilters').addEventListener('change', render);
     $('clearFilters').addEventListener('click', () => {
       $('search').value = '';
       FILTER_FIELDS.forEach(({ selectId }) => { $(selectId).value = ''; });
+      renderSpecFilters();
       render();
     });
     document.addEventListener('click', (event) => {
