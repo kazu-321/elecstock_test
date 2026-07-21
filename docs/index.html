@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#1f4e78">
   <title>電子部品 在庫管理</title>
   <style>
-    :root { --blue:#1f4e78; --bg:#f4f7fb; --red:#c62828; --green:#16794c; --line:#dbe4ee; }
+    :root { --blue:#1f4e78; --bg:#f4f7fb; --red:#c62828; --green:#16794c; --line:#dbe4ee; --ink:#1f2937; }
     * { box-sizing:border-box; }
-    body { margin:0; font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif; color:#1f2937; background:var(--bg); }
+    body { margin:0; font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif; color:var(--ink); background:var(--bg); }
     header { padding:16px 20px; color:#fff; background:var(--blue); }
-    header .header-inner { max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    header .header-inner { max-width:1240px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
     h1 { margin:0; font-size:21px; }
-    main { max-width:1200px; margin:0 auto; padding:18px; }
+    main { max-width:1240px; margin:0 auto; padding:18px; }
     .screen { max-width:520px; margin:8vh auto 0; padding:28px 22px; text-align:center; background:#fff; border-radius:16px; box-shadow:0 2px 12px #183b5514; }
     .screen h2 { color:var(--blue); }
     .screen p { line-height:1.8; color:#64748b; }
@@ -30,30 +30,46 @@
     button { cursor:pointer; border:0; color:#fff; background:var(--blue); font-weight:600; margin-top:12px; }
     button.secondary { color:#334155; background:#e2e8f0; }
     button.link { width:auto; margin:0; padding:7px 10px; font-size:12px; background:#e2e8f0; color:#334155; }
+    button.small { width:auto; margin:0; padding:6px 8px; font-size:12px; }
+    button.add { background:#16794c; }
+    button.use { background:#b45309; }
+    button.observe { background:#6d28d9; }
+    button.history { color:#334155; background:#e2e8f0; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .toolbar { display:flex; gap:8px; margin-bottom:12px; }
-    .toolbar input { flex:1; }
+    .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-bottom:12px; }
+    .toolbar button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
     .table-wrap { overflow:auto; }
-    table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
-    th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; }
+    table { width:100%; border-collapse:collapse; font-size:13px; min-width:780px; }
+    th, td { padding:9px 8px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:middle; }
     th { color:#475569; background:#f8fafc; }
     tr.low { background:#fff3f3; }
     .pill { display:inline-block; padding:3px 7px; border-radius:99px; font-size:12px; background:#dcfce7; color:var(--green); }
     .pill.low { background:#fee2e2; color:var(--red); }
-    .edit { width:auto; margin:0; padding:5px 8px; font-size:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:5px; min-width:260px; }
+    .muted { color:#64748b; font-size:12px; }
+    .user { display:flex; align-items:center; gap:8px; font-size:12px; }
+    .user-name { max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #message { min-height:22px; margin:8px 0; font-size:13px; }
     #message.error { color:var(--red); }
     #message.ok { color:var(--green); }
-    .muted { color:#64748b; font-size:12px; }
-    .user { display:flex; align-items:center; gap:8px; font-size:12px; }
-    .user-email { max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    dialog { width:min(94vw,520px); max-height:90vh; padding:0; border:0; border-radius:14px; box-shadow:0 10px 40px #0f172a40; }
+    dialog::backdrop { background:#0f172a66; }
+    .dialog-body { padding:20px; }
+    .dialog-actions { display:flex; gap:8px; margin-top:16px; }
+    .dialog-actions button { margin:0; }
+    .history-list { max-height:60vh; overflow:auto; }
+    .history-item { padding:11px 0; border-bottom:1px solid var(--line); }
+    .history-top { display:flex; justify-content:space-between; gap:8px; font-weight:700; }
+    .history-meta { margin-top:4px; color:#64748b; font-size:12px; line-height:1.6; }
+    .delta-positive { color:var(--green); }
+    .delta-negative { color:var(--red); }
     code { padding:2px 4px; border-radius:4px; background:#f1f5f9; }
     @media (max-width:800px) {
       .cards,.grid { grid-template-columns:1fr; }
       main { padding:12px; }
       header { padding:14px 12px; }
       header .header-inner { align-items:flex-start; }
-      .user-email { max-width:145px; }
+      .user-name { max-width:145px; }
     }
   </style>
 </head>
@@ -61,7 +77,7 @@
   <header>
     <div class="header-inner">
       <h1>電子部品 在庫管理</h1>
-      <div id="userBar" class="user hidden"><span id="userEmail" class="user-email"></span><button id="logoutButton" class="link" type="button">ログアウト</button></div>
+      <div id="userBar" class="user hidden"><span id="userName" class="user-name"></span><button id="logoutButton" class="link" type="button">ログアウト</button></div>
     </div>
   </header>
 
@@ -76,67 +92,72 @@
       <div id="message"></div>
       <div class="cards">
         <div class="card"><small>部品種類</small><strong id="partCount">-</strong></div>
-        <div class="card"><small>総在庫数</small><strong id="totalStock">-</strong></div>
+        <div class="card"><small>現在の推定在庫</small><strong id="totalStock">-</strong></div>
         <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
       </div>
 
       <div class="grid">
-        <div>
-          <section>
-            <h2 id="partFormTitle">部品を登録</h2>
-            <form id="partForm">
-              <p class="muted">部品IDは自動発行されます。入力不要です。</p>
-              <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
-              <div class="row">
-                <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
-                <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
-              </div>
-              <div class="row">
-                <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
-                <div><label for="unit">単位</label><input id="unit" value="個"></div>
-              </div>
-              <div class="row">
-                <div><label for="initialStock">初期在庫</label><input id="initialStock" type="number" min="0" value="0"></div>
-                <div><label for="minStock">最低在庫</label><input id="minStock" type="number" min="0" value="0"></div>
-              </div>
-              <label for="note">メモ</label><textarea id="note"></textarea>
-              <button type="submit">保存</button>
-              <button type="button" class="secondary" id="cancelEdit">入力をリセット</button>
-            </form>
-          </section>
-
-          <section style="margin-top:16px">
-            <h2>入庫・出庫</h2>
-            <form id="transactionForm">
-              <label for="transactionPartId">部品 *</label><select id="transactionPartId" required><option value="">読み込み中...</option></select>
-              <div class="row">
-                <div><label for="transactionType">種類</label><select id="transactionType"><option value="IN">入庫</option><option value="OUT">出庫</option></select></div>
-                <div><label for="quantity">数量 *</label><input id="quantity" type="number" min="1" step="1" required></div>
-              </div>
-              <label for="transactionNote">メモ</label><input id="transactionNote" placeholder="購入 / 使用先など">
-              <button type="submit">在庫を更新</button>
-            </form>
-            <p class="muted">出庫で在庫がマイナスになる操作はできません。</p>
-          </section>
-        </div>
+        <section>
+          <h2 id="partFormTitle">部品を登録</h2>
+          <form id="partForm">
+            <p class="muted">新しい部品は在庫0で登録されます。個数は一覧の「追加」から記録してください。</p>
+            <label for="name">部品名 *</label><input id="name" required placeholder="例: 10kΩ 抵抗">
+            <div class="row">
+              <div><label for="category">カテゴリ</label><input id="category" placeholder="抵抗 / IC"></div>
+              <div><label for="manufacturer">メーカー</label><input id="manufacturer"></div>
+            </div>
+            <div class="row">
+              <div><label for="location">保管場所</label><input id="location" placeholder="棚A-01"></div>
+              <div><label for="unit">単位</label><input id="unit" value="個"></div>
+            </div>
+            <label for="minStock">補充目安</label><input id="minStock" type="number" min="0" value="0">
+            <label for="note">メモ</label><textarea id="note"></textarea>
+            <button type="submit">基本情報を保存</button>
+            <button type="button" class="secondary" id="cancelEdit">入力をリセット</button>
+          </form>
+        </section>
 
         <section>
           <h2>部品一覧</h2>
           <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所で検索"><button type="button" class="secondary" id="reload">再読込</button></div>
-          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>在庫</th><th>最低</th><th>状態</th><th></th></tr></thead><tbody id="partsBody"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>最終観測</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
+          <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
         </section>
       </div>
     </div>
   </main>
 
+  <dialog id="operationDialog">
+    <div class="dialog-body">
+      <h2 id="operationTitle">在庫を変更</h2>
+      <p id="operationPartName" class="muted"></p>
+      <form id="operationForm">
+        <label id="operationAmountLabel" for="operationAmount">数量</label>
+        <input id="operationAmount" type="number" min="0" step="1" required>
+        <p id="operationHint" class="muted"></p>
+        <label for="operationNote">メモ</label>
+        <textarea id="operationNote" placeholder="使用先、購入先、数え直した理由など"></textarea>
+        <div class="dialog-actions"><button type="button" class="secondary" id="operationCancel">キャンセル</button><button type="submit">保存</button></div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="historyDialog">
+    <div class="dialog-body">
+      <h2 id="historyTitle">変更履歴</h2>
+      <div id="historyList" class="history-list"></div>
+      <div class="dialog-actions"><button type="button" class="secondary" id="historyClose">閉じる</button></div>
+    </div>
+  </dialog>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
     import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-    import { addDoc, collection, doc, getDocs, getFirestore, runTransaction, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+    import { addDoc, collection, doc, getDocs, getFirestore, query, runTransaction, serverTimestamp, setDoc, where } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
     import { firebaseConfig, isFirebaseConfigured } from './firebase-config.js';
 
     const $ = (id) => document.getElementById(id);
-    const state = { app: null, auth: null, db: null, user: null, parts: [], editingId: '' };
+    const state = { app:null, auth:null, db:null, user:null, parts:[], editingId:'', operation:null };
 
     function showStatus(title, text, showLogin = false) {
       $('statusTitle').textContent = title;
@@ -160,9 +181,43 @@
       return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
     }
 
+    function signed(value) {
+      const number = toNumber(value);
+      return number > 0 ? `+${number}` : String(number);
+    }
+
+    function formatTimestamp(timestamp) {
+      if (!timestamp) return '時刻確定待ち';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (Number.isNaN(date.getTime())) return '時刻不明';
+      return new Intl.DateTimeFormat('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).format(date);
+    }
+
+    function displayName() {
+      return state.user?.displayName || 'Googleユーザー';
+    }
+
     function normalizePart(snapshot) {
       const data = snapshot.data();
-      return { part_id:snapshot.id, name:String(data.name || ''), category:String(data.category || ''), manufacturer:String(data.manufacturer || ''), location:String(data.location || ''), stock:toNumber(data.stock), min_stock:toNumber(data.min_stock), unit:String(data.unit || '個'), note:String(data.note || '') };
+      return {
+        part_id:snapshot.id,
+        name:String(data.name || ''),
+        category:String(data.category || ''),
+        manufacturer:String(data.manufacturer || ''),
+        location:String(data.location || ''),
+        stock:toNumber(data.stock),
+        min_stock:toNumber(data.min_stock),
+        unit:String(data.unit || '個'),
+        note:String(data.note || ''),
+        lastObservedStock:data.lastObservedStock == null ? null : toNumber(data.lastObservedStock),
+        lastObservedAt:data.lastObservedAt || null,
+        lastObservedBy:String(data.lastObservedBy || ''),
+        lastObservedDelta:data.lastObservedDelta == null ? null : toNumber(data.lastObservedDelta)
+      };
+    }
+
+    function operationLabel(type) {
+      return ({ ADD:'追加', USE:'使用', OBSERVE:'観測' })[type] || type;
     }
 
     async function loadParts() {
@@ -171,27 +226,43 @@
       render();
     }
 
+    function observationSummary(part) {
+      if (part.lastObservedStock == null) return '未観測';
+      const drift = part.stock - part.lastObservedStock;
+      return `<div>${part.lastObservedStock} ${esc(part.unit)}（${esc(formatTimestamp(part.lastObservedAt))}）</div><div class="muted">観測後の推定変化 ${esc(signed(drift))}</div>`;
+    }
+
     function render() {
-      const query = $('search').value.trim().toLowerCase();
-      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer].join(' ').toLowerCase().includes(query));
+      const queryText = $('search').value.trim().toLowerCase();
+      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer].join(' ').toLowerCase().includes(queryText));
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
       $('totalStock').textContent = state.parts.reduce((sum, part) => sum + part.stock, 0);
       $('lowStockCount').textContent = lowCount;
       $('partsBody').innerHTML = visible.length ? visible.map((part) => {
         const low = part.stock <= part.min_stock;
-        return `<tr class="${low ? 'low' : ''}"><td>${esc(part.name)}</td><td>${esc(part.category)}</td><td>${esc(part.location)}</td><td>${part.stock} ${esc(part.unit)}</td><td>${part.min_stock}</td><td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td><td><button class="edit" data-id="${esc(part.part_id)}">編集</button></td></tr>`;
+        return `<tr class="${low ? 'low' : ''}">
+          <td><strong>${esc(part.name)}</strong><div class="muted">${esc(part.manufacturer)}</div></td>
+          <td>${esc(part.category)}</td><td>${esc(part.location)}</td>
+          <td><strong>${part.stock}</strong> ${esc(part.unit)}</td>
+          <td>${observationSummary(part)}</td>
+          <td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
+          <td><div class="actions">
+            <button class="small add" data-action="ADD" data-id="${esc(part.part_id)}">追加</button>
+            <button class="small use" data-action="USE" data-id="${esc(part.part_id)}">使用</button>
+            <button class="small observe" data-action="OBSERVE" data-id="${esc(part.part_id)}">観測</button>
+            <button class="small history" data-action="HISTORY" data-id="${esc(part.part_id)}">履歴</button>
+            <button class="small history" data-action="EDIT" data-id="${esc(part.part_id)}">編集</button>
+          </div></td>
+        </tr>`;
       }).join('') : '<tr><td colspan="7">該当する部品がありません。</td></tr>';
-      const current = $('transactionPartId').value;
-      $('transactionPartId').innerHTML = '<option value="">選択してください</option>' + state.parts.map((part) => `<option value="${esc(part.part_id)}">${esc(part.name)}</option>`).join('');
-      if (state.parts.some((part) => part.part_id === current)) $('transactionPartId').value = current;
     }
 
     function resetPartForm() {
       $('partForm').reset();
       state.editingId = '';
       $('unit').value = '個';
-      $('initialStock').disabled = false;
+      $('minStock').value = '0';
       $('partFormTitle').textContent = '部品を登録';
     }
 
@@ -206,9 +277,7 @@
       $('unit').value = part.unit;
       $('minStock').value = part.min_stock;
       $('note').value = part.note;
-      $('initialStock').value = part.stock;
-      $('initialStock').disabled = true;
-      $('partFormTitle').textContent = '部品を編集';
+      $('partFormTitle').textContent = '基本情報を編集';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -216,63 +285,106 @@
       event.preventDefault();
       const name = $('name').value.trim();
       if (!name) return;
-      const payload = { name, category:$('category').value.trim(), manufacturer:$('manufacturer').value.trim(), location:$('location').value.trim(), unit:$('unit').value.trim() || '個', min_stock:toNumber($('minStock').value), note:$('note').value.trim(), updatedAt:serverTimestamp(), updatedBy:state.user.email || state.user.uid };
+      const payload = { name, category:$('category').value.trim(), manufacturer:$('manufacturer').value.trim(), location:$('location').value.trim(), unit:$('unit').value.trim() || '個', min_stock:Math.max(0, toNumber($('minStock').value)), note:$('note').value.trim(), updatedAt:serverTimestamp(), updatedBy:displayName() };
       try {
         showMessage('保存中...');
-        if (state.editingId) {
-          await setDoc(doc(state.db, 'parts', state.editingId), payload, { merge:true });
-        } else {
-          await addDoc(collection(state.db, 'parts'), { ...payload, stock:Math.max(0, toNumber($('initialStock').value)), createdAt:serverTimestamp(), createdBy:state.user.email || state.user.uid });
-        }
+        if (state.editingId) await setDoc(doc(state.db, 'parts', state.editingId), payload, { merge:true });
+        else await addDoc(collection(state.db, 'parts'), { ...payload, stock:0, createdAt:serverTimestamp(), createdBy:displayName() });
         resetPartForm();
         await loadParts();
-        showMessage('保存しました。');
+        showMessage('基本情報を保存しました。');
       } catch (error) { showMessage(error.message || '保存に失敗しました。', true); }
     }
 
-    async function recordTransaction(event) {
+    function openOperation(id, type) {
+      const part = state.parts.find((item) => item.part_id === id);
+      if (!part) return;
+      state.operation = { id, type };
+      $('operationTitle').textContent = operationLabel(type);
+      $('operationPartName').textContent = `${part.name} / 現在の推定在庫: ${part.stock} ${part.unit}`;
+      $('operationAmountLabel').textContent = type === 'OBSERVE' ? '実際に数えた個数' : '数量';
+      $('operationAmount').min = type === 'OBSERVE' ? '0' : '1';
+      $('operationAmount').value = type === 'OBSERVE' ? String(part.stock) : '';
+      $('operationHint').textContent = type === 'OBSERVE' ? '観測前の推定在庫との差をズレとして記録します。' : `${type === 'ADD' ? '+' : '-'}方向で推定在庫を更新します。`;
+      $('operationNote').value = '';
+      $('operationDialog').showModal();
+      setTimeout(() => $('operationAmount').focus(), 0);
+    }
+
+    async function recordOperation(event) {
       event.preventDefault();
-      const partId = $('transactionPartId').value;
-      const quantity = toNumber($('quantity').value);
-      if (!partId || quantity < 1) return;
+      if (!state.operation) return;
+      const { id, type } = state.operation;
+      const amount = toNumber($('operationAmount').value);
+      if ((type === 'OBSERVE' && amount < 0) || (type !== 'OBSERVE' && amount < 1)) return;
       try {
-        showMessage('更新中...');
-        const partRef = doc(state.db, 'parts', partId);
+        showMessage('記録中...');
+        const partRef = doc(state.db, 'parts', id);
         await runTransaction(state.db, async (transaction) => {
           const partSnapshot = await transaction.get(partRef);
           if (!partSnapshot.exists()) throw new Error('部品が見つかりません。');
           const part = partSnapshot.data();
-          const currentStock = toNumber(part.stock);
-          const type = $('transactionType').value;
-          const stockAfter = type === 'IN' ? currentStock + quantity : currentStock - quantity;
-          if (stockAfter < 0) throw new Error('出庫後の在庫がマイナスになるため保存できません。');
-          transaction.update(partRef, { stock:stockAfter, updatedAt:serverTimestamp(), updatedBy:state.user.email || state.user.uid });
-          const transactionRef = doc(collection(state.db, 'transactions'));
-          transaction.set(transactionRef, { partId, timestamp:serverTimestamp(), type, quantity, note:$('transactionNote').value.trim(), operator:state.user.email || state.user.uid, stockAfter });
+          const beforeStock = toNumber(part.stock);
+          const delta = type === 'ADD' ? amount : type === 'USE' ? -amount : amount - beforeStock;
+          const stockAfter = type === 'OBSERVE' ? amount : beforeStock + delta;
+          if (stockAfter < 0) throw new Error('在庫がマイナスになるため保存できません。');
+          const partUpdate = { stock:stockAfter, updatedAt:serverTimestamp(), updatedBy:displayName() };
+          if (type === 'OBSERVE') Object.assign(partUpdate, { lastObservedStock:amount, lastObservedAt:serverTimestamp(), lastObservedBy:displayName(), lastObservedDelta:delta });
+          transaction.update(partRef, partUpdate);
+          const historyRef = doc(collection(state.db, 'transactions'));
+          transaction.set(historyRef, { partId:id, type, delta, quantity:type === 'OBSERVE' ? null : amount, observedStock:type === 'OBSERVE' ? amount : null, beforeStock, stockAfter, note:$('operationNote').value.trim(), operatorName:displayName(), operatorUid:state.user.uid, createdAt:serverTimestamp() });
         });
-        $('quantity').value = '';
-        $('transactionNote').value = '';
+        $('operationDialog').close();
+        state.operation = null;
         await loadParts();
-        showMessage('在庫を更新しました。');
-      } catch (error) { showMessage(error.message || '在庫更新に失敗しました。', true); }
+        showMessage(`${operationLabel(type)}を記録しました。`);
+      } catch (error) { showMessage(error.message || '記録に失敗しました。', true); }
+    }
+
+    function normalizeHistory(snapshot) {
+      const data = snapshot.data();
+      const type = data.type || 'UNKNOWN';
+      const quantity = data.quantity == null ? null : toNumber(data.quantity);
+      const beforeStock = data.beforeStock == null ? null : toNumber(data.beforeStock);
+      const stockAfter = data.stockAfter == null ? null : toNumber(data.stockAfter);
+      const fallbackDelta = type === 'IN' ? quantity : type === 'OUT' ? -quantity : stockAfter != null && beforeStock != null ? stockAfter - beforeStock : 0;
+      return { type:type === 'IN' ? 'ADD' : type === 'OUT' ? 'USE' : type, delta:data.delta == null ? fallbackDelta : toNumber(data.delta), quantity, observedStock:data.observedStock == null ? null : toNumber(data.observedStock), beforeStock, stockAfter, note:String(data.note || ''), operatorName:String(data.operatorName || data.operator || '不明'), createdAt:data.createdAt || data.timestamp || null };
+    }
+
+    async function openHistory(id) {
+      const part = state.parts.find((item) => item.part_id === id);
+      if (!part) return;
+      $('historyTitle').textContent = `${part.name} の変更履歴`;
+      $('historyList').innerHTML = '<p class="muted">読み込み中...</p>';
+      $('historyDialog').showModal();
+      try {
+        const snapshot = await getDocs(query(collection(state.db, 'transactions'), where('partId', '==', id)));
+        const histories = snapshot.docs.map(normalizeHistory).sort((a, b) => {
+          const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return bTime - aTime;
+        });
+        $('historyList').innerHTML = histories.length ? histories.map((item) => {
+          const deltaClass = item.delta > 0 ? 'delta-positive' : item.delta < 0 ? 'delta-negative' : '';
+          const detail = item.type === 'OBSERVE'
+            ? `実測 ${item.observedStock} / 観測前の推定 ${item.beforeStock} / ズレ ${signed(item.delta)}`
+            : `変更量 <strong class="${deltaClass}">${signed(item.delta)}</strong>`;
+          return `<div class="history-item"><div class="history-top"><span>${esc(operationLabel(item.type))}</span><span class="${deltaClass}">${item.stockAfter == null ? '' : `推定在庫 ${item.stockAfter}`}</span></div><div class="history-meta">${esc(formatTimestamp(item.createdAt))} / ${esc(item.operatorName)}<br>${detail}${item.note ? `<br>メモ: ${esc(item.note)}` : ''}</div></div>`;
+        }).join('') : '<p class="muted">まだ変更履歴がありません。</p>';
+      } catch (error) { $('historyList').innerHTML = `<p class="delta-negative">${esc(error.message || '履歴を読み込めませんでした。')}</p>`; }
     }
 
     async function startLogin() {
-      try {
-        await signInWithPopup(state.auth, new GoogleAuthProvider());
-      } catch (error) {
-        const message = error.code === 'auth/popup-blocked'
-          ? 'ポップアップがブロックされました。ブラウザのポップアップを許可してください。'
-          : error.code === 'auth/popup-closed-by-user'
-            ? 'ログイン画面が閉じられました。もう一度お試しください。'
-            : error.message || 'Googleログインに失敗しました。';
+      try { await signInWithPopup(state.auth, new GoogleAuthProvider()); }
+      catch (error) {
+        const message = error.code === 'auth/popup-blocked' ? 'ポップアップがブロックされました。ブラウザでポップアップを許可してください。' : error.code === 'auth/popup-closed-by-user' ? 'ログイン画面が閉じられました。もう一度お試しください。' : error.message || 'Googleログインに失敗しました。';
         showStatus('ログインできませんでした', message, true);
       }
     }
 
     function showApp(user) {
       state.user = user;
-      $('userEmail').textContent = user.email || user.displayName || 'ログイン中';
+      $('userName').textContent = displayName();
       $('userBar').classList.remove('hidden');
       $('statusScreen').classList.add('hidden');
       $('appScreen').classList.remove('hidden');
@@ -280,10 +392,7 @@
     }
 
     async function boot() {
-      if (!isFirebaseConfigured) {
-        showStatus('Firebase設定が必要です', 'docs/firebase-config.jsにFirebaseのWebアプリ設定を貼り付けてください。手順はREADMEにあります。');
-        return;
-      }
+      if (!isFirebaseConfigured) { showStatus('Firebase設定が必要です', 'docs/firebase-config.jsにFirebaseのWebアプリ設定を貼り付けてください。', false); return; }
       state.app = initializeApp(firebaseConfig);
       state.auth = getAuth(state.app);
       state.db = getFirestore(state.app);
@@ -293,8 +402,17 @@
     $('loginButton').addEventListener('click', startLogin);
     $('logoutButton').addEventListener('click', () => signOut(state.auth));
     $('partForm').addEventListener('submit', savePart);
-    $('transactionForm').addEventListener('submit', recordTransaction);
-    $('partsBody').addEventListener('click', (event) => { if (event.target.dataset.id) editPart(event.target.dataset.id); });
+    $('operationForm').addEventListener('submit', recordOperation);
+    $('operationCancel').addEventListener('click', () => $('operationDialog').close());
+    $('historyClose').addEventListener('click', () => $('historyDialog').close());
+    $('partsBody').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const action = button.dataset.action;
+      if (action === 'EDIT') editPart(button.dataset.id);
+      else if (action === 'HISTORY') openHistory(button.dataset.id);
+      else openOperation(button.dataset.id, action);
+    });
     $('cancelEdit').addEventListener('click', resetPartForm);
     $('reload').addEventListener('click', () => loadParts().catch((error) => showMessage(error.message || '再読込に失敗しました。', true)));
     $('search').addEventListener('input', render);
