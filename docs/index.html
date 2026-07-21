@@ -17,7 +17,7 @@
     .screen h2 { color:var(--blue); }
     .screen p { line-height:1.8; color:#64748b; }
     .hidden { display:none !important; }
-    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .cards { display:grid; grid-template-columns:repeat(2,minmax(0,220px)); gap:12px; margin-bottom:16px; }
     .card, section { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px #183b5514; }
     .card small { color:#64748b; display:block; }
     .card strong { display:block; font-size:28px; margin-top:4px; }
@@ -35,6 +35,7 @@
     button.use { background:#b45309; }
     button.observe { background:#6d28d9; }
     button.history { color:#334155; background:#e2e8f0; }
+    button.delete { color:#991b1b; background:#fee2e2; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-bottom:12px; }
     .toolbar button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
@@ -92,7 +93,6 @@
       <div id="message"></div>
       <div class="cards">
         <div class="card"><small>部品種類</small><strong id="partCount">-</strong></div>
-        <div class="card"><small>未観測の部品</small><strong id="unobservedCount">-</strong></div>
         <div class="card"><small>低在庫</small><strong id="lowStockCount" class="danger">-</strong></div>
       </div>
 
@@ -119,8 +119,8 @@
 
         <section>
           <h2>部品一覧</h2>
-          <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所で検索"><button type="button" class="secondary" id="reload">再読込</button></div>
-          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>最終観測</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
+          <div class="toolbar"><input id="search" placeholder="部品名・カテゴリ・場所・メモで検索"><button type="button" class="secondary" id="reload">再読込</button></div>
+          <div class="table-wrap"><table><thead><tr><th>部品名</th><th>カテゴリ</th><th>場所</th><th>推定在庫</th><th>状態</th><th>操作</th></tr></thead><tbody id="partsBody"></tbody></table></div>
           <p class="muted">追加・使用は推定在庫を動かします。観測は実際に数えた個数へ合わせ、ズレを履歴に残します。</p>
         </section>
       </div>
@@ -153,7 +153,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
     import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
-    import { addDoc, collection, doc, getDocs, getFirestore, query, runTransaction, serverTimestamp, setDoc, where } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
+    import { addDoc, collection, doc, getDocs, getFirestore, query, runTransaction, serverTimestamp, setDoc, where, writeBatch } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
     import { firebaseConfig, isFirebaseConfigured } from './firebase-config.js';
 
     const $ = (id) => document.getElementById(id);
@@ -226,18 +226,11 @@
       render();
     }
 
-    function observationSummary(part) {
-      if (part.lastObservedStock == null) return '未観測';
-      const drift = part.stock - part.lastObservedStock;
-      return `<div>${part.lastObservedStock} ${esc(part.unit)}（${esc(formatTimestamp(part.lastObservedAt))}）</div><div class="muted">観測後の推定変化 ${esc(signed(drift))}</div>`;
-    }
-
     function render() {
       const queryText = $('search').value.trim().toLowerCase();
-      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer].join(' ').toLowerCase().includes(queryText));
+      const visible = state.parts.filter((part) => [part.name, part.category, part.location, part.manufacturer, part.note].join(' ').toLowerCase().includes(queryText));
       const lowCount = state.parts.filter((part) => part.stock <= part.min_stock).length;
       $('partCount').textContent = state.parts.length;
-      $('unobservedCount').textContent = state.parts.filter((part) => part.lastObservedStock == null).length;
       $('lowStockCount').textContent = lowCount;
       $('partsBody').innerHTML = visible.length ? visible.map((part) => {
         const low = part.stock <= part.min_stock;
@@ -245,7 +238,6 @@
           <td><strong>${esc(part.name)}</strong><div class="muted">${esc(part.manufacturer)}</div></td>
           <td>${esc(part.category)}</td><td>${esc(part.location)}</td>
           <td><strong>${part.stock}</strong> ${esc(part.unit)}</td>
-          <td>${observationSummary(part)}</td>
           <td><span class="pill ${low ? 'low' : ''}">${low ? '要補充' : 'OK'}</span></td>
           <td><div class="actions">
             <button class="small add" data-action="ADD" data-id="${esc(part.part_id)}">追加</button>
@@ -253,9 +245,10 @@
             <button class="small observe" data-action="OBSERVE" data-id="${esc(part.part_id)}">観測</button>
             <button class="small history" data-action="HISTORY" data-id="${esc(part.part_id)}">履歴</button>
             <button class="small history" data-action="EDIT" data-id="${esc(part.part_id)}">編集</button>
+            <button class="small delete" data-action="DELETE" data-id="${esc(part.part_id)}">削除</button>
           </div></td>
         </tr>`;
-      }).join('') : '<tr><td colspan="7">該当する部品がありません。</td></tr>';
+      }).join('') : '<tr><td colspan="6">該当する部品がありません。</td></tr>';
     }
 
     function resetPartForm() {
@@ -341,6 +334,25 @@
       } catch (error) { showMessage(error.message || '記録に失敗しました。', true); }
     }
 
+    async function deletePart(id) {
+      const part = state.parts.find((item) => item.part_id === id);
+      if (!part) return;
+      if (!window.confirm(`「${part.name}」を削除しますか？\nこの部品の変更履歴も削除されます。`)) return;
+      try {
+        showMessage('削除中...');
+        const historySnapshot = await getDocs(query(collection(state.db, 'transactions'), where('partId', '==', id)));
+        const refs = [doc(state.db, 'parts', id), ...historySnapshot.docs.map((item) => item.ref)];
+        for (let start = 0; start < refs.length; start += 450) {
+          const batch = writeBatch(state.db);
+          refs.slice(start, start + 450).forEach((ref) => batch.delete(ref));
+          await batch.commit();
+        }
+        if (state.editingId === id) resetPartForm();
+        await loadParts();
+        showMessage('部品と変更履歴を削除しました。');
+      } catch (error) { showMessage(error.message || '削除に失敗しました。', true); }
+    }
+
     function normalizeHistory(snapshot) {
       const data = snapshot.data();
       const type = data.type || 'UNKNOWN';
@@ -411,6 +423,7 @@
       const action = button.dataset.action;
       if (action === 'EDIT') editPart(button.dataset.id);
       else if (action === 'HISTORY') openHistory(button.dataset.id);
+      else if (action === 'DELETE') deletePart(button.dataset.id);
       else openOperation(button.dataset.id, action);
     });
     $('cancelEdit').addEventListener('click', resetPartForm);
