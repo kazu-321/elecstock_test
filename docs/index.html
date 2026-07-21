@@ -373,9 +373,8 @@
 
     function getSpecFilterFields() {
       const genre = $('filterCategory').value;
-      if (!genre) return [];
-      const genreParts = state.parts.filter((part) => canonicalTag('category', part.category) === genre);
-      const fields = getGenreSpecFields(genre).map((field) => ({ key:field.key, label:field.label, values:uniqueValues(genreParts.map((part) => part.specs?.[field.key])) }));
+      const genreParts = genre ? state.parts.filter((part) => canonicalTag('category', part.category) === genre) : state.parts;
+      const fields = genre ? getGenreSpecFields(genre).map((field) => ({ key:field.key, label:field.label, values:uniqueValues(genreParts.map((part) => part.specs?.[field.key])) })) : [];
       const customFields = new Map();
       genreParts.forEach((part) => (part.specs?.custom || []).forEach((item) => {
         const key = item.label.toLocaleLowerCase('ja');
